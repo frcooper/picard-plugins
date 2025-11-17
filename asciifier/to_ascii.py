@@ -6,21 +6,20 @@ script-friendly way.
 """
 
 PLUGIN_NAME = "Asciifier — to_ascii()"
-PLUGIN_AUTHOR = "FRC + GitHub Copilot (derived from Non-ASCII Equivalents)"
+PLUGIN_AUTHOR = "FRC + GitHub Copilot"
 PLUGIN_DESCRIPTION = (
 	"Expose a $asciify() script function that replaces accented and other "
-	"non-ASCII characters with ASCII approximations, using the exact "
-	"replacement table from the Non-ASCII Equivalents plugin by Anderson "
-	"Mesquita and Konrad Marciniak, with configurable maps."
+	"non-ASCII characters with ASCII approximations using configurable "
+	"character maps, plus an optional automatic mode for common tags."
 )
-PLUGIN_VERSION = "0.3.1"
+PLUGIN_VERSION = "0.4.0"
 PLUGIN_API_VERSIONS = ["2.0"]
 PLUGIN_LICENSE = "GPL-3.0-or-later"
 PLUGIN_LICENSE_URL = "https://gnu.org/licenses/gpl.html"
 
 from picard.script import register_script_function
-from picard import config, log
-from picard.config import TextOption
+from picard import config, log, metadata
+from picard.config import TextOption, BoolOption
 from picard.ui.options import register_options_page, OptionsPage
 
 
@@ -36,6 +35,14 @@ import json
 PLUGIN_OPTIONS = [
 	# JSON-serialized dict of maps: {name: {"enabled": bool, "pairs": [["char", "replacement"], ...]}}
 	TextOption("setting", "asciifier_maps", "{}"),
+	# Automatic mode: clean selected tags and variables on album/track processing.
+	BoolOption("setting", "asciifier_auto_enabled", True),
+	TextOption(
+		"setting",
+		"asciifier_auto_tags",
+		"album, albumartist, albumartists, albumartistsort, albumsort, "
+		"artist, artists, artistsort, title",
+	),
 ]
 
 
@@ -224,6 +231,31 @@ def asciify(parser, value: str = "") -> str:
 
 register_script_function(asciify)
 
+
+def _parse_auto_tags(raw: str):
+	if not raw:
+		return []
+	parts = []
+	for piece in raw.replace("\n", ",").split(","):
+		name = piece.strip()
+		if name:
+			parts.append(name)
+	return parts
+
+
+def _auto_clean_metadata(md: metadata.Metadata, table: dict, tag_names):
+	"""Apply ASCII conversion to selected tags in a Metadata object.
+
+	Works on both rawitems (multivalue) and simple string values.
+	"""
+	for name in tag_names:
+		if name in md:
+			val = md.get(name)
+			if isinstance(val, list):
+				md[name] = ["".join(_sanitize_char(ch, table) for ch in str(x)) for x in val]
+			else:
+				md[name] = "".join(_sanitize_char(ch, table) for ch in str(val))
+
 # Manual smoke-test examples (run from a separate helper or REPL):
 #   from asciifier.to_ascii import to_ascii
 #   for s in [
@@ -264,15 +296,32 @@ class AsciifierOptionsPage(OptionsPage):
 		layout = QVBoxLayout(self)
 
 		desc = QLabel(
-			"Configure character maps used by $asciify(). "
-			"Each map is a set of character → replacement pairs. "
-			"You can enable/disable maps, edit them, or create your own."
+			"Configure Asciifier. "
+			"Character maps control how non-ASCII characters are replaced. "
+			"You can also enable automatic cleaning of common tags."
 		)
 		desc.setWordWrap(True)
 		layout.addWidget(desc)
 
-		self.unaccent_checkbox = QCheckBox("Use unaccent() fallback for unmapped characters")
-		layout.addWidget(self.unaccent_checkbox)
+		# Automatic mode controls
+		self.auto_enabled_checkbox = QCheckBox("Automatically clean common tags on load")
+		layout.addWidget(self.auto_enabled_checkbox)
+
+		self.auto_tags_label = QLabel(
+			"Tags/variables to clean (comma or newline separated), "
+			"e.g. album, artist, title."
+		)
+		self.auto_tags_label.setWordWrap(True)
+		layout.addWidget(self.auto_tags_label)
+
+		from PyQt5.QtWidgets import QPlainTextEdit
+		self.auto_tags_edit = QPlainTextEdit()
+		self.auto_tags_edit.setPlaceholderText(
+			"album, albumartist, albumartists, albumartistsort, albumsort,\n"
+			"artist, artists, artistsort, title"
+		)
+		self.auto_tags_edit.setFixedHeight(60)
+		layout.addWidget(self.auto_tags_edit)
 
 		# Map selection row
 		row = QHBoxLayout()
@@ -414,8 +463,18 @@ class AsciifierOptionsPage(OptionsPage):
 		self._maps[name]["pairs"] = pairs
 
 	def load(self):
-		self.unaccent_checkbox.setChecked(
-			config.setting.get("asciifier_use_unaccent_fallback", True)
+		self.auto_enabled_checkbox.setChecked(
+			config.setting.get("asciifier_auto_enabled")
+			if "asciifier_auto_enabled" in config.setting
+			else True
+		)
+		self.auto_tags_edit.setPlainText(
+			config.setting.get("asciifier_auto_tags")
+			if "asciifier_auto_tags" in config.setting
+			else (
+				"album, albumartist, albumartists, albumartistsort, albumsort, "
+				"artist, artists, artistsort, title"
+			)
 		)
 		self._maps = _load_maps_from_config()
 		self._ensure_at_least_one_map()
@@ -424,10 +483,37 @@ class AsciifierOptionsPage(OptionsPage):
 	def save(self):
 		self._save_table_into_current_map()
 		_save_maps_to_config(self._maps)
-		config.setting["asciifier_use_unaccent_fallback"] = (
-			self.unaccent_checkbox.isChecked()
+		config.setting["asciifier_auto_enabled"] = (
+			self.auto_enabled_checkbox.isChecked()
 		)
-		log.debug("Asciifier: saved %d maps", len(self._maps))
+		config.setting["asciifier_auto_tags"] = (
+			self.auto_tags_edit.toPlainText().strip()
+		)
+		log.debug("Asciifier: saved %d maps; auto_enabled=%r", len(self._maps), self.auto_enabled_checkbox.isChecked())
 
 
 register_options_page(AsciifierOptionsPage)
+
+
+def _auto_album_processor(tagger, metadata_obj, release):
+	if not config.setting.get("asciifier_auto_enabled", False):
+		return
+	table = _build_effective_table()
+	tags = _parse_auto_tags(config.setting.get("asciifier_auto_tags", ""))
+	if not tags or not table:
+		return
+	_auto_clean_metadata(metadata_obj, table, tags)
+
+
+def _auto_track_processor(tagger, metadata_obj, track, release):
+	if not config.setting.get("asciifier_auto_enabled", False):
+		return
+	table = _build_effective_table()
+	tags = _parse_auto_tags(config.setting.get("asciifier_auto_tags", ""))
+	if not tags or not table:
+		return
+	_auto_clean_metadata(metadata_obj, table, tags)
+
+
+metadata.register_album_metadata_processor(_auto_album_processor)
+metadata.register_track_metadata_processor(_auto_track_processor)
