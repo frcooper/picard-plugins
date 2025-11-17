@@ -1,6 +1,6 @@
 # Copilot instructions for asciifier
 
-Context: This folder contains an asciifier plugin (`to_ascii.py`) that exposes a script function and an optional automatic mode to translate non-ASCII characters into ASCII-safe equivalents.
+Context: This folder contains an asciifier plugin (`plugin.py`) that exposes a script function and an optional automatic mode to translate non-ASCII characters into ASCII-safe equivalents.
 
 Goals
 - Provide a script-callable function (via `register_script_function`) that converts a given string to an ASCII-safe version.
@@ -41,7 +41,7 @@ Implementation notes
 
 Versioning
 - Use semantic versions in `MAJOR.MINOR.PATCH` form for `PLUGIN_VERSION`.
-- Make sure `to_ascii.py` has full plugin metadata (name, version, author, description, URL) once the plugin is implemented.
+- Make sure `plugin.py` has full plugin metadata (name, version, author, description, URL) once the plugin is implemented.
 - Bump version numbers according to behavior changes (new mappings or API surface → minor; bugfixes → patch; major for breaking changes).
 
 Tagging & releases

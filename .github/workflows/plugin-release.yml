@@ -38,13 +38,13 @@ jobs:
           # Map plugin name to main file path
           case "$PLUGIN_NAME" in
             "featured-artists-standardizer")
-              FILE="featured-artists-standardizer/feat_standardizer.py"
+              FILE="featured-artists-standardizer/plugin.py"
               ;;
             "file-collision-protection")
-              FILE="file-collision-protection/guardrails.py"
+              FILE="file-collision-protection/plugin.py"
               ;;
             "asciifier")
-              FILE="asciifier/to_ascii.py"
+              FILE="asciifier/plugin.py"
               ;;
             *)
               echo "Unknown plugin name '$PLUGIN_NAME'" >&2

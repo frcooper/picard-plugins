@@ -1,6 +1,6 @@
 # Copilot instructions for Featured Artists — Standardizer
 
-Context: This folder contains the `Featured Artists — Standardizer` plugin (`feat_standardizer.py`). It enforces label-style handling of featured artists on both track and album level.
+Context: This folder contains the `Featured Artists — Standardizer` plugin (`plugin.py`). It enforces label-style handling of featured artists on both track and album level.
 
 Key behaviors
 - Track level: Move featured artists from `ARTIST` into `TITLE` suffix `(feat. A; B)` exactly once; keep only the lead artist in `ARTIST` / `artistsort`.

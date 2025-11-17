@@ -1,6 +1,6 @@
 # Copilot instructions for Guardrails — collision-aware renamer
 
-Context: This folder contains the `Guardrails — collision-aware renamer (experimental)` plugin (`guardrails.py`). It detects filename collisions after Picard saves files and either retries naming with a flag or treats the collision as a fatal error. Behaviour is experimental and may be fragile across Picard versions.
+Context: This folder contains the `Guardrails — collision-aware renamer (experimental)` plugin (`plugin.py`). It detects filename collisions after Picard saves files and either retries naming with a flag or treats the collision as a fatal error. Behaviour is experimental and may be fragile across Picard versions.
 
 Key behaviors
 - Hooks: Uses `register_file_post_save_processor` (and optionally `register_file_pre_save_processor` on Picard 2.9+) to inspect saved file paths.

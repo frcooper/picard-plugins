@@ -1,11 +1,10 @@
-"""Picard plugin: Asciifier
+"""Asciifier plugin entry point.
 
-Expose a script function that converts strings to ASCII-safe equivalents,
-mirroring the behavior of the legacy `Non-ASCII Equivalents` plugin but in a
-script-friendly way.
+This module is the main plugin file for Picard and the library entry
+point for the Asciifier plugin.
 """
 
-PLUGIN_NAME = "Asciifier — to_ascii()"
+PLUGIN_NAME = "Asciifier  to_ascii()"
 PLUGIN_AUTHOR = "FRC + GitHub Copilot"
 PLUGIN_DESCRIPTION = (
 	"Expose a $asciify() script function that replaces accented and other "
@@ -23,19 +22,11 @@ from picard.config import TextOption, BoolOption
 from picard.ui.options import register_options_page, OptionsPage
 
 
-# Configuration model
-# --------------------
-# We support multiple named "maps" of character replacements. Each map can be
-# toggled on/off, and users can create or delete maps entirely. Internally we
-# persist maps as JSON in a single TextOption so they remain editable and
-# future-proof without introducing a complex schema.
 import json
 
 
 PLUGIN_OPTIONS = [
-	# JSON-serialized dict of maps: {name: {"enabled": bool, "pairs": [["char", "replacement"], ...]}}
 	TextOption("setting", "asciifier_maps", "{}"),
-	# Automatic mode: clean selected tags and variables on album/track processing.
 	BoolOption("setting", "asciifier_auto_enabled", True),
 	TextOption(
 		"setting",
@@ -47,13 +38,6 @@ PLUGIN_OPTIONS = [
 
 
 def _load_maps_from_config():
-	"""Return dict of maps from config; never raise.
-
-	Schema:
-	{
-	  "Default": {"enabled": true, "pairs": [["Å", "AA"], ["ß", "ss"]]}
-	}
-	"""
 	raw = config.setting.get("asciifier_maps", "{}")
 	try:
 		data = json.loads(raw) if raw else {}
@@ -62,8 +46,6 @@ def _load_maps_from_config():
 		data = {}
 	if not isinstance(data, dict):
 		data = {}
-	# If no maps configured yet, seed with four defaults mirroring
-	# Non-ASCII Equivalents' CHAR_TABLE split into categories.
 	if not data:
 		data = {
 			"alpha": {
@@ -168,10 +150,6 @@ def _save_maps_to_config(maps: dict) -> None:
 
 
 def _build_effective_table() -> dict:
-	"""Combine all enabled maps into a single lookup table.
-
-	Last map wins on duplicate characters, in insertion order of the dict.
-	"""
 	maps = _load_maps_from_config()
 	table = {}
 	for name, spec in maps.items():
@@ -191,23 +169,12 @@ def _build_effective_table() -> dict:
 
 
 def _sanitize_char(ch: str, table: dict) -> str:
-	"""Return an ASCII-safe equivalent for a single character.
-
-	- If the character is explicitly mapped in the effective table, use that.
-	- Otherwise, return the original character unchanged.
-	"""
 	if ch in table:
 		return table[ch]
 	return ch
 
 
 def to_ascii(text: str) -> str:
-	"""Convert a string to an ASCII-safe representation.
-
-	This function is intentionally simple and pure so it can be used both
-	from tests and from Picard scripts. It is also idempotent: running it
-	multiple times on the same string will not keep changing the output.
-	"""
 	if not text:
 		return ""
 	table = _build_effective_table()
@@ -215,15 +182,6 @@ def to_ascii(text: str) -> str:
 
 
 def asciify(parser, value: str = "") -> str:
-	"""Script function `$asciify()`.
-
-	Usage in Picard scripts:
-		$asciify(%artist%)
-
-	The `parser` argument is provided by Picard's script engine and is not
-	used here; we only care about the string value.
-	"""
-	# Picard passes values as strings; if nothing provided, return empty.
 	if value is None:
 		return ""
 	return to_ascii(str(value))
@@ -244,10 +202,6 @@ def _parse_auto_tags(raw: str):
 
 
 def _auto_clean_metadata(md: metadata.Metadata, table: dict, tag_names):
-	"""Apply ASCII conversion to selected tags in a Metadata object.
-
-	Works on both rawitems (multivalue) and simple string values.
-	"""
 	for name in tag_names:
 		if name in md:
 			val = md.get(name)
@@ -256,28 +210,8 @@ def _auto_clean_metadata(md: metadata.Metadata, table: dict, tag_names):
 			else:
 				md[name] = "".join(_sanitize_char(ch, table) for ch in str(val))
 
-# Manual smoke-test examples (run from a separate helper or REPL):
-#   from asciifier.to_ascii import to_ascii
-#   for s in [
-#       "Beyoncé — Déjà Vu",
-#       "Ångström — Weißß",
-#       "Rock & Roll – Live ★",
-#       "Normal ASCII string",
-#   ]:
-#       print(s, "->", to_ascii(s))
-
 
 class AsciifierOptionsPage(OptionsPage):
-	"""Options page to manage character maps.
-
-	Each map is a grid of characters and their replacements. Users can:
-	- Toggle maps on/off.
-	- Add/remove maps.
-	- Edit the character→replacement pairs for each map.
-
-	Storage is JSON in `config.setting["asciifier_maps"]`.
-	"""
-
 	NAME = "asciifier"
 	TITLE = "Asciifier"
 	PARENT = "plugins"
@@ -287,7 +221,7 @@ class AsciifierOptionsPage(OptionsPage):
 			QVBoxLayout, QLabel, QCheckBox, QHBoxLayout,
 			QTableWidget, QTableWidgetItem, QPushButton, QComboBox,
 		)
-		from PyQt5.QtCore import Qt
+		from PyQt5.QtCore import Qt  # noqa: F401
 
 		super().__init__(parent)
 		self._maps = {}
@@ -303,7 +237,6 @@ class AsciifierOptionsPage(OptionsPage):
 		desc.setWordWrap(True)
 		layout.addWidget(desc)
 
-		# Automatic mode controls
 		self.auto_enabled_checkbox = QCheckBox("Automatically clean common tags on load")
 		layout.addWidget(self.auto_enabled_checkbox)
 
@@ -323,7 +256,6 @@ class AsciifierOptionsPage(OptionsPage):
 		self.auto_tags_edit.setFixedHeight(60)
 		layout.addWidget(self.auto_tags_edit)
 
-		# Map selection row
 		row = QHBoxLayout()
 		row.addWidget(QLabel("Map:"))
 		self.map_select = QComboBox()
@@ -336,7 +268,6 @@ class AsciifierOptionsPage(OptionsPage):
 		row.addWidget(self.remove_map_btn)
 		layout.addLayout(row)
 
-		# Character grid for current map
 		self.table = QTableWidget(0, 2)
 		self.table.setHorizontalHeaderLabels(["Character", "Replacement"])
 		self.table.horizontalHeader().setStretchLastSection(True)
@@ -353,7 +284,6 @@ class AsciifierOptionsPage(OptionsPage):
 		layout.addStretch()
 		self.ui = self
 
-		# Wire signals
 		self.add_map_btn.clicked.connect(self._on_add_map)
 		self.remove_map_btn.clicked.connect(self._on_remove_map)
 		self.map_select.currentTextChanged.connect(self._on_map_changed)
@@ -364,7 +294,6 @@ class AsciifierOptionsPage(OptionsPage):
 	def _ensure_at_least_one_map(self):
 		if self._maps:
 			return
-		# Create an empty default map that does nothing but can be edited.
 		self._maps = {
 			"Default": {"enabled": True, "pairs": []},
 		}
@@ -412,7 +341,6 @@ class AsciifierOptionsPage(OptionsPage):
 		name = self.map_select.currentText()
 		if not name or name not in self._maps:
 			return
-		# Do not allow removing the last map; keep at least one.
 		if len(self._maps) == 1:
 			self._maps[name]["pairs"] = []
 			self._load_current_map_into_table()
@@ -422,7 +350,6 @@ class AsciifierOptionsPage(OptionsPage):
 		self._refresh_map_list()
 
 	def _on_map_changed(self, name: str):
-		# Persist any edits from the previous map before switching.
 		self._save_table_into_current_map()
 		self._current_map_name = name or None
 		self._load_current_map_into_table()
