@@ -28,11 +28,10 @@ PLUGIN_LICENSE = "GPL-3.0-or-later"
 PLUGIN_LICENSE_URL = "https://gnu.org/licenses/gpl.html"
 
 # Ensure required Picard configuration types are imported before use
-from picard.config import BoolOption, TextOption
+from picard.config import TextOption
 
 # Configuration options
 PLUGIN_OPTIONS = [
-    BoolOption("setting", "add_featured_artists_tag", False),
     TextOption("setting", "featured_artists_whitelist", ""),  # newline / comma / semicolon separated full artist credits to skip
 ]
 
@@ -98,21 +97,10 @@ class FeaturedArtistsOptionsPage(OptionsPage):
             "- Recognizes tokens: feat., featuring, with.\n"
             "- Splits guests on commas, &, +, ;, ' and ', and ' / ' (slash only when surrounded by spaces).\n"
             "- Order preserved; duplicates removed case-insensitively.\n"
-            "- Optional: write FEATURED_ARTISTS as a multivalue tag.\n"
             "- Whitelist artist full credits to skip processing (e.g., an exact artist credit string)."
         )
         format_info.setWordWrap(True)
         layout.addWidget(format_info)
-
-        # Add featured artists tag option
-        self.add_featured_artists_checkbox = QCheckBox(
-            "Add 'Featured Artists' multivalue tag"
-        )
-        self.add_featured_artists_checkbox.setToolTip(
-            "When enabled, adds a 'FEATURED_ARTISTS' tag containing the normalized list of featured artists. "
-            "This can be useful for scripts or other plugins that need to access the featured artists separately."
-        )
-        layout.addWidget(self.add_featured_artists_checkbox)
 
         # Whitelist textbox
         whitelist_label = QLabel(
@@ -132,14 +120,9 @@ class FeaturedArtistsOptionsPage(OptionsPage):
         self.ui = self
 
     def load(self):
-        self.add_featured_artists_checkbox.setChecked(
-            config.setting["add_featured_artists_tag"]
-        )
         self.whitelist_edit.setPlainText(config.setting.get("featured_artists_whitelist", ""))
 
     def save(self):
-        config.setting["add_featured_artists_tag"] = \
-            self.add_featured_artists_checkbox.isChecked()
         raw_wl = self.whitelist_edit.toPlainText().strip()
         config.setting["featured_artists_whitelist"] = raw_wl
         log.debug("Featured Artists: updated whitelist (%d chars)", len(raw_wl))
@@ -388,13 +371,6 @@ def move_track_featartists(tagger, metadata, track, release):
         metadata["title"] = new_title
         log.debug("Featured Artists: %s", "Updated title to: '%s'" % new_title)
     
-    # Optional: expose clean featured list for user workflows (controlled by config)
-    if feat and config.setting["add_featured_artists_tag"]:
-        metadata["FEATURED_ARTISTS"] = feat
-        log.debug("Featured Artists: %s", "Added FEATURED_ARTISTS tag: '%s'" % feat_str)
-    elif feat:
-        log.debug("Featured Artists: %s", "Featured artists found but FEATURED_ARTISTS tag disabled in configuration")
-
 
 register_album_metadata_processor(move_album_featartists)
 register_track_metadata_processor(move_track_featartists)

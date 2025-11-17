@@ -9,7 +9,7 @@ This repository contains a small collection of custom plugins for [MusicBrainz P
 - Standardizes how featured artists are represented at both track and album level.
 - Track level: moves featured artists from `ARTIST` into the `TITLE` suffix `(feat. A; B)` once, keeping the lead artist in `ARTIST`/`artistsort`.
 - Album level: pulls features out of `ALBUMARTIST` into the `ALBUM` title `(feat. …)`, skipping "Various Artists".
-- Normalizes separators, de-duplicates guests, and optionally exposes a `FEATURED_ARTISTS` tag.
+- Normalizes separators and de-duplicates guests while preserving order.
 - Includes a configurable whitelist of artist credits that should never be altered.
 
 ### Guardrails — collision-aware renamer (experimental) (`file-collision-protection/guardrails.py`)
@@ -25,4 +25,11 @@ This repository contains a small collection of custom plugins for [MusicBrainz P
 - Uses a replacement table based on the classic `Non-ASCII Equivalents` plugin, split into configurable maps (`alpha`, `punct`, `math`, `other`).
 - Maps can be enabled/disabled and edited from an options page; you can add your own maps or clear the defaults to make the plugin a no-op.
 - Optional automatic mode can clean a configurable list of tags (e.g. album, artist, title) on album/track processing.
+
+## Recommended plugins
+
+These third-party plugins pair well with this collection:
+
+- Additional Artists Variables — <https://github.com/rdswift/picard-plugins/tree/master/plugins/additional_artists_variables>
+- Standardise Performers — <https://github.com/Sobak/picard-plugins/tree/master/plugins/standardise_performers>
 

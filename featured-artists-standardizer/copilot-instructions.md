@@ -10,7 +10,7 @@ Key behaviors
 - Normalization: De-duplicate guests case-insensitively while preserving order, and normalize separators to `; ` inside the `(feat. …)` suffix.
 - Integration: Includes the behavior of the third-party `Standardise Feat.` plugin by normalizing join phrases like `ft`, `ft.`, `featuring` to `feat.` before further processing.
 - Whitelist: A configurable whitelist of exact artist credits that should never be altered. If a full credit or its lead artist is whitelisted, no changes at all are applied to that credit.
-- Optional tag: When enabled in settings, writes a multivalue `FEATURED_ARTISTS` tag with the normalized guest list.
+ 
 
 Implementation notes
 - Keep logic idempotent: never append multiple `(feat. …)` suffixes and avoid re-processing already-normalized strings.
@@ -18,7 +18,7 @@ Implementation notes
 - Any new behavior that changes tagging/renaming should log via `log.debug` with the `"Featured Artists:"` prefix.
 
 Config & UI
-- Settings live in `PLUGIN_OPTIONS` (currently a `BoolOption` for `add_featured_artists_tag` and a `TextOption` for `featured_artists_whitelist`).
+- Settings live in `PLUGIN_OPTIONS` (currently a `TextOption` for `featured_artists_whitelist`).
 - The options UI is implemented by `FeaturedArtistsOptionsPage` and should be expanded in-place if new options are added. Build widgets directly on `self` and keep `self.ui = self`.
 
 Versioning
