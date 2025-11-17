@@ -12,16 +12,17 @@ This repository contains a small collection of custom plugins for [MusicBrainz P
 - Normalizes separators, de-duplicates guests, and optionally exposes a `FEATURED_ARTISTS` tag.
 - Includes a configurable whitelist of artist credits that should never be altered.
 
-### Guardrails — collision-aware renamer (`file-collision-protection/guardrails.py`)
+### Guardrails — collision-aware renamer (experimental) (`file-collision-protection/guardrails.py`)
 
-- Watches for Picard's " (n)" filename collision suffix after saves.
+- Experimental plugin that watches for Picard's " (n)" filename collision suffix after saves.
 - On normal mode: sets `_guardrails_has_collision` and immediately re-runs Picard's naming logic so your script can switch to an alternate template.
-- On fatal mode: treats collisions as errors, rolling back the rename/move to the original path when possible.
+- On fatal mode: treats collisions as errors, attempting to roll back the rename/move to the original path when possible.
 - Provides the `$collides()` script function to let naming scripts react cleanly to collisions.
 
 ### Asciifier — to_ascii() (`asciifier/to_ascii.py`)
 
 - Provides the `$asciify()` script function for converting strings to ASCII-safe equivalents.
-- Uses the exact replacement table from the classic `Non-ASCII Equivalents` plugin, split into configurable maps (`alpha`, `punct`, `math`, `other`).
+- Uses a replacement table based on the classic `Non-ASCII Equivalents` plugin, split into configurable maps (`alpha`, `punct`, `math`, `other`).
 - Maps can be enabled/disabled and edited from an options page; you can add your own maps or clear the defaults to make the plugin a no-op.
+- Optional automatic mode can clean a configurable list of tags (e.g. album, artist, title) on album/track processing.
 

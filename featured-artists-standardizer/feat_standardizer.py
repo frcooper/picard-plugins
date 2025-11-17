@@ -77,8 +77,8 @@ class FeaturedArtistsOptionsPage(OptionsPage):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-            # Picard 2.x uses PyQt5
-            from PyQt5.QtWidgets import QVBoxLayout, QLabel, QCheckBox, QPlainTextEdit
+        # Picard 2.x uses PyQt5
+        from PyQt5.QtWidgets import QVBoxLayout, QLabel, QCheckBox, QPlainTextEdit
 
         # Build UI directly on this OptionsPage widget to avoid blank pages
         layout = QVBoxLayout(self)
