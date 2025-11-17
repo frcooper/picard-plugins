@@ -22,7 +22,11 @@ Config & UI
 - The options UI is implemented by `FeaturedArtistsOptionsPage` and should be expanded in-place if new options are added. Build widgets directly on `self` and keep `self.ui = self`.
 
 Versioning
-- When you change normalization rules, whitelist behavior, or config surface, bump `PLUGIN_VERSION` appropriately (patch for bugfix, minor for behavior/config additions).
+- Use semantic versions in `MAJOR.MINOR.PATCH` form for `PLUGIN_VERSION`.
+- When you change normalization rules, whitelist behavior, or config surface, bump the version appropriately (patch for bugfix, minor for behavior/config additions, major for breaking changes).
+
+Tagging & releases
+- Release this plugin independently by tagging commits with `featured-artists-standardizer-vMAJOR.MINOR.PATCH` (for example, `featured-artists-standardizer-v1.2.2`).
 
 Testing tips
 - Use Picard's debug log to verify transformations. Log both decisions (e.g. skipping due to whitelist) and resulting values (new title/album strings).

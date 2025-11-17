@@ -20,7 +20,11 @@ Config & UI
 - The options UI is implemented by `GuardrailsOptionsPage`. Extend this page if you add more behavior modes, but maintain the existing radio-button flow for backward compatibility.
 
 Versioning
-- Bump `PLUGIN_VERSION` for any behavioral change in collision detection, rollback logic, or script-visible behavior. Use patch for fixes, minor for new modes, and major only for breaking changes.
+- Use semantic versions in `MAJOR.MINOR.PATCH` form for `PLUGIN_VERSION`.
+- Bump the version for any behavioral change in collision detection, rollback logic, or script-visible behavior (patch for fixes, minor for new modes, major only for breaking changes).
+
+Tagging & releases
+- Release this plugin independently by tagging commits with `file-collision-protection-vMAJOR.MINOR.PATCH` (for example, `file-collision-protection-v1.1.2`).
 
 Testing tips
 - Use a test naming script that deliberately produces duplicate target filenames to exercise both non-fatal and fatal modes.

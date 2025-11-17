@@ -1,0 +1,81 @@
+name: Plugin Release
+
+on:
+  push:
+    tags:
+      - '*-v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive plugin name and version from tag
+        id: info
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PLUGIN_NAME="${TAG%-v*}"
+          VERSION="${TAG#${PLUGIN_NAME}-v}"
+          echo "plugin_name=$PLUGIN_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Validate version format MAJOR.MINOR.PATCH
+        id: validate
+        run: |
+          VERSION="${{ steps.info.outputs.version }}"
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Version '$VERSION' is not in MAJOR.MINOR.PATCH format" >&2
+            exit 1
+          fi
+
+      - name: Verify PLUGIN_VERSION matches tag
+        id: check_plugin_version
+        run: |
+          PLUGIN_NAME="${{ steps.info.outputs.plugin_name }}"
+          VERSION="${{ steps.info.outputs.version }}"
+          # Map plugin name to main file path
+          case "$PLUGIN_NAME" in
+            "featured-artists-standardizer")
+              FILE="featured-artists-standardizer/feat_standardizer.py"
+              ;;
+            "file-collision-protection")
+              FILE="file-collision-protection/guardrails.py"
+              ;;
+            "asciifier")
+              FILE="asciifier/to_ascii.py"
+              ;;
+            *)
+              echo "Unknown plugin name '$PLUGIN_NAME'" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "Checking PLUGIN_VERSION in $FILE matches $VERSION"
+          FILE_VERSION=$(grep -E "^PLUGIN_VERSION\s*=\s*['\"]" "$FILE" | head -n1 | sed -E "s/.*PLUGIN_VERSION\s*=\s*['\"]([^'\"]+)['\"].*/\1/")
+          if [ -z "$FILE_VERSION" ]; then
+            echo "Could not find PLUGIN_VERSION in $FILE" >&2
+            exit 1
+          fi
+          if [ "$FILE_VERSION" != "$VERSION" ]; then
+            echo "PLUGIN_VERSION '$FILE_VERSION' does not match tag version '$VERSION'" >&2
+            exit 1
+          fi
+
+      - name: Create plugin archive
+        run: |
+          PLUGIN_NAME="${{ steps.info.outputs.plugin_name }}"
+          VERSION="${{ steps.info.outputs.version }}"
+          ZIP_NAME="${PLUGIN_NAME}-${VERSION}.zip"
+          zip -r "$ZIP_NAME" "$PLUGIN_NAME"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: |
+            ${{ steps.info.outputs.plugin_name }}-${{ steps.info.outputs.version }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

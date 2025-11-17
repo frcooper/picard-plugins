@@ -40,8 +40,12 @@ Implementation notes
 - Ensure at least one map always exists in the UI, but allow that map's pair list to be empty so the plugin can be effectively no-op.
 
 Versioning
+- Use semantic versions in `MAJOR.MINOR.PATCH` form for `PLUGIN_VERSION`.
 - Make sure `to_ascii.py` has full plugin metadata (name, version, author, description, URL) once the plugin is implemented.
-- Bump version numbers according to behavior changes (new mappings or API surface → minor; bugfixes → patch).
+- Bump version numbers according to behavior changes (new mappings or API surface → minor; bugfixes → patch; major for breaking changes).
+
+Tagging & releases
+- Release this plugin independently by tagging commits with `asciifier-vMAJOR.MINOR.PATCH` (for example, `asciifier-v0.4.1`).
 
 Testing tips
 - Write small unit-like tests inside a `if __name__ == "__main__":` block or in a separate helper to verify common cases:
