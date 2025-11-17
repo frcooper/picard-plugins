@@ -19,15 +19,16 @@ Bryan Toth, JeromyNix. Rewritten for stricter, idempotent behavior.
 PLUGIN_NAME = 'Featured Artists — Standardizer'
 PLUGIN_AUTHOR = 'FRC + ChatGPT (derives from community plugin authors)'
 PLUGIN_DESCRIPTION = 'Enforce label-style handling of featured artists: keep folders clean, move features to titles, normalize separators, avoid duplicates.'
-PLUGIN_VERSION = '1.0.2'
+PLUGIN_VERSION = '1.2.0'
 PLUGIN_API_VERSIONS = ["0.9.0", "0.10", "0.15", "0.16", "2.0"]
 
 # Ensure required Picard configuration types are imported before use
-from picard.config import BoolOption
+from picard.config import BoolOption, TextOption
 
 # Configuration options
 PLUGIN_OPTIONS = [
     BoolOption("setting", "add_featured_artists_tag", False),
+    TextOption("setting", "featured_artists_whitelist", ""),  # newline / comma / semicolon separated full artist credits to skip
 ]
 
 from picard.metadata import (
@@ -54,6 +55,9 @@ _FEAT_SEP_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Normalize any variant of ft/feat/featuring join phrases to " feat. "
+_FT_NORMALIZE_RE = re.compile(r" f(ea)?t(\.|uring)? ", re.IGNORECASE)
+
 
 # --- Logging ---
 # Use Picard's built-in logger directly via `log.*`.
@@ -70,9 +74,9 @@ class FeaturedArtistsOptionsPage(OptionsPage):
         super().__init__(parent)
         # Qt compatibility: Prefer PyQt6, fallback to PyQt5
         try:
-            from PyQt6.QtWidgets import QVBoxLayout, QLabel, QCheckBox
+            from PyQt6.QtWidgets import QVBoxLayout, QLabel, QCheckBox, QPlainTextEdit
         except ImportError:  # pragma: no cover - runtime environment dependent
-            from PyQt5.QtWidgets import QVBoxLayout, QLabel, QCheckBox
+            from PyQt5.QtWidgets import QVBoxLayout, QLabel, QCheckBox, QPlainTextEdit
 
         # Build UI directly on this OptionsPage widget to avoid blank pages
         layout = QVBoxLayout(self)
@@ -92,7 +96,8 @@ class FeaturedArtistsOptionsPage(OptionsPage):
             "- Recognizes tokens: feat., featuring, with.\n"
             "- Splits guests on commas, &, +, ;, ' and ', and ' / ' (slash only when surrounded by spaces).\n"
             "- Order preserved; duplicates removed case-insensitively.\n"
-            "- Optional: write FEATURED_ARTISTS as a multivalue tag."
+            "- Optional: write FEATURED_ARTISTS as a multivalue tag.\n"
+            "- Whitelist artist full credits to skip processing (e.g., an exact artist credit string)."
         )
         format_info.setWordWrap(True)
         layout.addWidget(format_info)
@@ -107,6 +112,19 @@ class FeaturedArtistsOptionsPage(OptionsPage):
         )
         layout.addWidget(self.add_featured_artists_checkbox)
 
+        # Whitelist textbox
+        whitelist_label = QLabel(
+            "Artist whitelist (one per line, or separate with commas/semicolons).\n"
+            "Exact full artist credits listed here will be left untouched even if they contain tokens like 'feat.' or 'with'."
+        )
+        whitelist_label.setWordWrap(True)
+        layout.addWidget(whitelist_label)
+
+        self.whitelist_edit = QPlainTextEdit()
+        self.whitelist_edit.setPlaceholderText("Artist Name 1\nArtist Name 2")
+        self.whitelist_edit.setFixedHeight(90)
+        layout.addWidget(self.whitelist_edit)
+
         layout.addStretch()
         # Some Picard versions expect `self.ui` to reference the widget
         self.ui = self
@@ -115,10 +133,14 @@ class FeaturedArtistsOptionsPage(OptionsPage):
         self.add_featured_artists_checkbox.setChecked(
             config.setting["add_featured_artists_tag"]
         )
+        self.whitelist_edit.setPlainText(config.setting.get("featured_artists_whitelist", ""))
 
     def save(self):
         config.setting["add_featured_artists_tag"] = \
             self.add_featured_artists_checkbox.isChecked()
+        raw_wl = self.whitelist_edit.toPlainText().strip()
+        config.setting["featured_artists_whitelist"] = raw_wl
+        log.debug("Featured Artists: updated whitelist (%d chars)", len(raw_wl))
 
 
 # --- Utility functions ---
@@ -190,12 +212,105 @@ def _split_artist_feat(artist: str):
     return (lead or artist), _normalize_feat_list(tail)
 
 
+def _parse_whitelist():
+    """Parse configured whitelist into a casefolded set of full artist credits.
+
+    Users can separate entries by newlines, commas, or semicolons. Empty lines ignored.
+    """
+    try:
+        raw = config.setting.get("featured_artists_whitelist", "")
+    except Exception:
+        raw = ""
+    if not raw:
+        return set()
+    items = [
+        itm.strip() for itm in re.split(r"[\n,;]", raw) if itm.strip()
+    ]
+    return {itm.casefold() for itm in items}
+
+
+def _is_whitelisted(full_artist_credit: str) -> bool:
+    if not full_artist_credit:
+        return False
+    wl = _parse_whitelist()
+    if not wl:
+        return False
+    return full_artist_credit.strip().casefold() in wl
+
+
+def _is_whitelisted_credit_or_lead(full_artist_credit: str) -> bool:
+    """Return True if the exact credit OR its lead artist is whitelisted.
+
+    This ensures no alterations happen when the primary artist is in the
+    whitelist, even if the displayed credit includes feature tokens.
+    """
+    if _is_whitelisted(full_artist_credit):
+        return True
+    lead, _ = _split_artist_feat(full_artist_credit or "")
+    if lead and _is_whitelisted(lead):
+        return True
+    return False
+
+
+def _standardize_join_phrases(artists_str: str, artists_list):
+    """Normalize join phrases between credited artists to ' feat. '.
+
+    This mirrors the behavior of the 'Standardise Feat.' plugin but keeps
+    implementation local to this plugin. It reconstructs the string by
+    finding the text between the credited artist names and replacing any
+    variant of ft/feat/featuring with ' feat. '.
+
+    If matching fails (e.g., mismatch between artists_list and artists_str),
+    returns the original string unmodified.
+    """
+    try:
+        if not artists_str or not artists_list:
+            return artists_str
+        # Build a regex that captures the text between each credited artist
+        # Example: (\s*.*\s*) escaped(A) (\s*.*\s*) escaped(B) ... (\s*.*$)
+        match_exp = r"(\s*.*\s*)".join(map(re.escape, artists_list)) + r"(\s*.*$)"
+        m = re.match(match_exp, artists_str)
+        if not m:
+            return artists_str
+        joins = list(m.groups())
+        # Replace variants with canonical ' feat. '
+        joins = [_FT_NORMALIZE_RE.sub(" feat. ", j) for j in joins]
+        # There is one fewer join than artists; add empty tail to zip cleanly
+        joins.append("")
+        return "".join(artist + join for artist, join in zip(artists_list, joins))
+    except Exception:
+        # Be conservative: never break metadata if anything unexpected happens
+        return artists_str
+
+
 # --- Album-level processor ---
 
 def move_album_featartists(tagger, metadata, release):
     albumartist = metadata.get("albumartist", "")
     if not albumartist:
         return
+    if _is_whitelisted_credit_or_lead(albumartist):
+        log.debug("Featured Artists: skipping albumartist %r (whitelisted)", albumartist)
+        return
+    # Pre-pass: normalize join phrases to 'feat.' using album artist credits list
+    try:
+        albumartists_list = metadata.getall("~albumartists")
+    except Exception:
+        albumartists_list = []
+    if albumartist and albumartists_list:
+        std = _standardize_join_phrases(albumartist, albumartists_list)
+        if std != albumartist:
+            metadata["albumartist"] = std
+            albumartist = std
+    albumartistsort = metadata.get("albumartistsort", "")
+    try:
+        albumartists_sort_list = metadata.getall("~albumartists_sort")
+    except Exception:
+        albumartists_sort_list = []
+    if albumartistsort and albumartists_sort_list:
+        std_sort = _standardize_join_phrases(albumartistsort, albumartists_sort_list)
+        if std_sort != albumartistsort:
+            metadata["albumartistsort"] = std_sort
     # Skip VA
     if albumartist.strip().lower() == "various artists":
         log.debug("Featured Artists: %s", "Skipping Various Artists album")
@@ -229,6 +344,28 @@ def move_album_featartists(tagger, metadata, release):
 
 def move_track_featartists(tagger, metadata, track, release):
     artist = metadata.get("artist", "")
+    if _is_whitelisted_credit_or_lead(artist):
+        log.debug("Featured Artists: skipping artist %r (whitelisted)", artist)
+        return
+    # Pre-pass: normalize join phrases to 'feat.' using credited artists list
+    try:
+        artists_list = metadata.getall("artists")
+    except Exception:
+        artists_list = []
+    if artist and artists_list:
+        std = _standardize_join_phrases(artist, artists_list)
+        if std != artist:
+            metadata["artist"] = std
+            artist = std
+    artistsort = metadata.get("artistsort", "")
+    try:
+        artists_sort_list = metadata.getall("~artists_sort")
+    except Exception:
+        artists_sort_list = []
+    if artistsort and artists_sort_list:
+        std_sort = _standardize_join_phrases(artistsort, artists_sort_list)
+        if std_sort != artistsort:
+            metadata["artistsort"] = std_sort
     lead, feat = _split_artist_feat(artist)
     feat_str = "; ".join(feat)
     
