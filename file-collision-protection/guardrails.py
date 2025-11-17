@@ -23,17 +23,26 @@ PLUGIN_NAME = 'Guardrails — collision-aware renamer'
 PLUGIN_AUTHOR = 'FRC + GitHub Copilot'
 PLUGIN_DESCRIPTION = (
     "Detects when a saved file had to be suffixed with ' (n)' due to a name "
-    "collision, sets '_guardrails_has_collision', and re-runs renaming so your "
-    "naming script can switch templates."
+    "collision. On normal mode it sets '_guardrails_has_collision' and re-runs "
+    "renaming so your naming script can switch templates. On fatal mode it "
+    "rolls back the move/rename to the original pre-save path and marks an error."
 )
-PLUGIN_VERSION = '1.0.2'
-PLUGIN_API_VERSIONS = ["2.2"]
+PLUGIN_VERSION = '1.1.1'
+# Supports Picard 2.2+; enhanced rollback requires 2.9+ (pre-save hook)
+PLUGIN_API_VERSIONS = ["2.2", "2.9"]
 
 import os
 import re
+import shutil
 
 from picard import log, config
 from picard.file import register_file_post_save_processor, File
+try:
+    from picard.file import register_file_pre_save_processor  # Picard 2.9+
+    _GUARDRAILS_HAS_PRESAVE = True
+except Exception:
+    register_file_pre_save_processor = None
+    _GUARDRAILS_HAS_PRESAVE = False
 from picard.script import register_script_function
 from picard.ui.options import register_options_page, OptionsPage
 from picard.config import BoolOption
@@ -48,22 +57,16 @@ def _has_collision_suffix(path: str) -> bool:
     name = os.path.basename(path)
     m = _COLLISION_SUFFIX_RE.match(name)
     if m:
-        # Debug which suffix number was detected
-        try:
-            num = m.group('num')
-            log.debug("Guardrails: detected collision suffix '(%s)' in %r", num, name)
-        except Exception:
-            log.debug("Guardrails: detected collision suffix in %r", name)
+        log.debug("Guardrails: detected collision suffix '(%s)' in %r", m.group('num'), name)
         return True
-    else:
-        return False
+    return False
 
 
 def _rerun_naming_with_flag(file_obj):
     """Set the in-memory flag and re-run renaming immediately.
 
     This does not re-save tags; it only renames/moves the file again using the
-    current naming script, which now can react to '~guardrails_collision'.
+    current naming script, which now can react to '_guardrails_has_collision'.
     """
     # Mark collision for naming scripts (internal-only variable, not written to file)
     file_obj.metadata['_guardrails_has_collision'] = '1'
@@ -92,43 +95,76 @@ def _rerun_naming_with_flag(file_obj):
         log.debug("Guardrails: alternate naming produced same path; keeping %r", old_filename)
 
 
+def _record_original_path(file_obj):
+    """Store the current on-disk path before save so we can roll back if needed."""
+    file_obj._guardrails_original_filename = file_obj.filename
+    log.debug("Guardrails: recorded original path %r", file_obj.filename)
+
+
+def _rollback_move(file_obj):
+    """Roll back the collision rename to the original pre-save path.
+
+    - Uses the path recorded in file_pre_save_processor; no fallbacks.
+    - Does not overwrite existing files at the original location.
+    - Updates Picard's internal file mapping and UI.
+    """
+    current = file_obj.filename
+    orig = getattr(file_obj, "_guardrails_original_filename", None)
+    if not orig:
+        raise RuntimeError("original path not recorded; pre-save hook missing")
+
+    if current == orig:
+        log.debug("Guardrails: current == original, nothing to roll back for %r", current)
+        return
+
+    # Ensure parent dir exists; restore to original path without existence checks
+    os.makedirs(os.path.dirname(orig), exist_ok=True)
+
+    # Cross-volume safe move
+    shutil.move(current, orig)
+
+    # Update bookkeeping similar to File._save_done
+    try:
+        del file_obj.tagger.files[current]
+    except KeyError:
+        pass
+    file_obj.filename = orig
+    file_obj.base_filename = os.path.basename(orig)
+    file_obj.tagger.files[orig] = file_obj
+    file_obj.update()
+
+
+def file_pre_save_processor(file_obj):
+    _record_original_path(file_obj)
+
+
 def file_post_save_processor(file_obj):
     try:
         # Only act if Picard had to append " (n)" to resolve a collision
         if _has_collision_suffix(file_obj.filename):
-            try:
-                fatal_cfg = config.setting["guardrails_fatal_on_collision"]
-            except Exception:
-                fatal_cfg = False
+            fatal_cfg = config.setting["guardrails_fatal_on_collision"]
             if fatal_cfg:
-                # Mark as error and don't attempt alternate rename
+                # Fatal: roll back the move/rename to the original path and mark error
+                file_obj.state = File.ERROR
+                file_obj.error_append("Guardrails: filename collision detected for '%s'" % file_obj.filename)
                 try:
-                    file_obj.state = File.ERROR
-                except Exception:
-                    pass
-                try:
-                    file_obj.error_append("Guardrails: filename collision detected for '%s'" % file_obj.filename)
-                except Exception:
-                    pass
-                log.error("Guardrails: collision treated as fatal for %r", file_obj.filename)
+                    _rollback_move(file_obj)
+                    file_obj.error_append("Guardrails: rolled back to original path: %s" % file_obj.filename)
+                    log.error("Guardrails: collision fatal; rolled back to %r", file_obj.filename)
+                except Exception as e:
+                    log.error("Guardrails: fatal collision - rollback failed: %s", e, exc_info=True)
             else:
                 _rerun_naming_with_flag(file_obj)
         else:
             # Non-collision save: clear previously set flag so scripts revert to normal
-            try:
-                if '_guardrails_has_collision' in file_obj.metadata:
-                    try:
-                        del file_obj.metadata['_guardrails_has_collision']
-                    except Exception:
-                        file_obj.metadata['_guardrails_has_collision'] = ''
-                    log.debug("Guardrails: cleared collision flag for %r", file_obj.filename)
-            except Exception:
-                log.debug("Guardrails: unable to clear collision flag for %r", file_obj.filename)
-            log.debug("Guardrails: no collision suffix for %r", file_obj.filename)
+            if '_guardrails_has_collision' in file_obj.metadata:
+                del file_obj.metadata['_guardrails_has_collision']
     except Exception:
         log.error("Guardrails: post-save processing failed for %r", file_obj, exc_info=True)
 
 
+if _GUARDRAILS_HAS_PRESAVE:
+    register_file_pre_save_processor(file_pre_save_processor)
 register_file_post_save_processor(file_post_save_processor)
 
 
@@ -150,14 +186,8 @@ def collides(parser):
     Notes:
     - Prefer using `$collides()` in scripts; alternatively use `$get(_guardrails_has_collision)`.
     """
-    try:
-        val = parser.context.get('_guardrails_has_collision', '')
-        result = '1' if val else ''
-        log.debug("Guardrails: $collides() -> %r (val=%r)", result, val)
-        return result
-    except Exception:
-        log.error("Guardrails: $collides() failed", exc_info=True)
-        return ''
+    val = parser.context.get('_guardrails_has_collision', '')
+    return '1' if val else ''
 
 
 register_script_function(collides)
@@ -211,10 +241,7 @@ class GuardrailsOptionsPage(OptionsPage):
         self.ui = self
 
     def load(self):
-        try:
-            fatal = config.setting["guardrails_fatal_on_collision"]
-        except Exception:
-            fatal = False
+        fatal = config.setting["guardrails_fatal_on_collision"]
         if fatal:
             self.radio_fatal.setChecked(True)
         else:
@@ -222,10 +249,7 @@ class GuardrailsOptionsPage(OptionsPage):
 
     def save(self):
         # Log when configuration is changed
-        try:
-            old_value = config.setting["guardrails_fatal_on_collision"]
-        except Exception:
-            old_value = False
+        old_value = config.setting["guardrails_fatal_on_collision"]
         new_value = self.radio_fatal.isChecked()
         config.setting["guardrails_fatal_on_collision"] = new_value
         if old_value != new_value:
