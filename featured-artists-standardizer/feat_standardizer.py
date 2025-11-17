@@ -22,7 +22,7 @@ distributed under the GPL-3.0-or-later license.
 PLUGIN_NAME = 'Featured Artists — Standardizer'
 PLUGIN_AUTHOR = 'FRC + ChatGPT (derives from community plugin authors)'
 PLUGIN_DESCRIPTION = 'Enforce label-style handling of featured artists: keep folders clean, move features to titles, normalize separators, avoid duplicates.'
-PLUGIN_VERSION = '1.2.1'
+PLUGIN_VERSION = '2.0.0'
 PLUGIN_API_VERSIONS = ["0.9.0", "0.10", "0.15", "0.16", "2.0"]
 PLUGIN_LICENSE = "GPL-3.0-or-later"
 PLUGIN_LICENSE_URL = "https://gnu.org/licenses/gpl.html"
