@@ -23,13 +23,13 @@ This repository contains a small collection of custom plugins for [MusicBrainz P
 ## Releases and automation
 
 - GitHub Actions: On any pushed tag matching `*-vMAJOR.MINOR.PATCH`, the `Plugin Release` workflow runs.
-	- It derives the plugin name from the tag prefix (e.g. `asciifier-v1.0.0` -> `asciifier`).
-	- It validates that the version string is in `MAJOR.MINOR.PATCH` format.
-	- It checks that the `PLUGIN_VERSION` defined in that plugin's `plugin.py` matches the tag version.
-	- It builds a zip archive named `<plugin>-<version>.zip` from the plugin directory and publishes a GitHub Release attaching that archive.
+  - It derives the plugin name from the tag prefix (e.g. `asciifier-v1.0.0` -> `asciifier`).
+  - It validates that the version string is in `MAJOR.MINOR.PATCH` format.
+  - It checks that the `PLUGIN_VERSION` defined in that plugin's `plugin.py` matches the tag version.
+  - It builds a zip archive named `<plugin>-<version>.zip` from the plugin directory and publishes a GitHub Release attaching that archive.
 - Helper scripts: To cut a release for a plugin from this repo root, you can use either script below (they both perform the same steps):
-	- Bash: `./mk-plugin-release.sh <plugin-name> <MAJOR.MINOR.PATCH>`
-	- PowerShell: `./mk-plugin-release.ps1 -PluginName <plugin-name> -Version <MAJOR.MINOR.PATCH>`
+  - Bash: `./mk-plugin-release.sh <plugin-name> <MAJOR.MINOR.PATCH>`
+  - PowerShell: `./mk-plugin-release.ps1 -PluginName <plugin-name> -Version <MAJOR.MINOR.PATCH>`
 
 These scripts will:
 
