@@ -19,16 +19,16 @@ $if($get(_guardrails_has_collision),
 )
 """
 
-PLUGIN_NAME = 'Guardrails — collision-aware renamer'
+PLUGIN_NAME = 'Guardrails — collision-aware renamer (experimental)'
 PLUGIN_AUTHOR = 'FRC + GitHub Copilot'
 PLUGIN_DESCRIPTION = (
-    "Detects when a saved file had to be suffixed with ' (n)' due to a name "
-    "collision. On normal mode it sets '_guardrails_has_collision' and re-runs "
-    "renaming so your naming script can switch templates. On fatal mode it "
-    "rolls back the move/rename to the original pre-save path and marks an error."
+    "Experimental collision-handling plugin. Detects when a saved file had to be suffixed with "
+    "' (n)' due to a name collision and either re-runs naming with a collision flag or attempts "
+    "a rollback to the original path. Behaviour is likely to be fragile across Picard versions "
+    "and should be treated as experimental and potentially broken."
 )
-PLUGIN_VERSION = '1.1.1'
-# Supports Picard 2.2+; enhanced rollback requires 2.9+ (pre-save hook)
+PLUGIN_VERSION = '1.2.0'
+# Supports Picard 2.2+; enhanced rollback requires 2.9+ (pre-save hook). Behaviour is experimental.
 PLUGIN_API_VERSIONS = ["2.2", "2.9"]
 
 import os

@@ -77,10 +77,7 @@ class FeaturedArtistsOptionsPage(OptionsPage):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        # Qt compatibility: Prefer PyQt6, fallback to PyQt5
-        try:
-            from PyQt6.QtWidgets import QVBoxLayout, QLabel, QCheckBox, QPlainTextEdit
-        except ImportError:  # pragma: no cover - runtime environment dependent
+            # Picard 2.x uses PyQt5
             from PyQt5.QtWidgets import QVBoxLayout, QLabel, QCheckBox, QPlainTextEdit
 
         # Build UI directly on this OptionsPage widget to avoid blank pages
