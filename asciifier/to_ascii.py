@@ -6,14 +6,17 @@ script-friendly way.
 """
 
 PLUGIN_NAME = "Asciifier — to_ascii()"
-PLUGIN_AUTHOR = "FRC + GitHub Copilot"
+PLUGIN_AUTHOR = "FRC + GitHub Copilot (derived from Non-ASCII Equivalents)"
 PLUGIN_DESCRIPTION = (
 	"Expose a $asciify() script function that replaces accented and other "
-	"non-ASCII characters with ASCII approximations, based on the "
-	"Non-ASCII Equivalents plugin."
+	"non-ASCII characters with ASCII approximations, using the exact "
+	"replacement table from the Non-ASCII Equivalents plugin by Anderson "
+	"Mesquita and Konrad Marciniak, with configurable maps."
 )
-PLUGIN_VERSION = "0.3.0"
+PLUGIN_VERSION = "0.3.1"
 PLUGIN_API_VERSIONS = ["2.0"]
+PLUGIN_LICENSE = "GPL-3.0-or-later"
+PLUGIN_LICENSE_URL = "https://gnu.org/licenses/gpl.html"
 
 from picard.script import register_script_function
 from picard import config, log

@@ -14,13 +14,18 @@ Rules implemented
 Based on Picard examples and the community plugin
 "Feat. Artists in Titles" by Lukas Lalinsky, Michael Wiencek,
 Bryan Toth, JeromyNix. Rewritten for stricter, idempotent behavior.
+
+This plugin is a derivative work of GPL-licensed community code and is
+distributed under the GPL-3.0-or-later license.
 """
 
 PLUGIN_NAME = 'Featured Artists — Standardizer'
 PLUGIN_AUTHOR = 'FRC + ChatGPT (derives from community plugin authors)'
 PLUGIN_DESCRIPTION = 'Enforce label-style handling of featured artists: keep folders clean, move features to titles, normalize separators, avoid duplicates.'
-PLUGIN_VERSION = '1.2.0'
+PLUGIN_VERSION = '1.2.1'
 PLUGIN_API_VERSIONS = ["0.9.0", "0.10", "0.15", "0.16", "2.0"]
+PLUGIN_LICENSE = "GPL-3.0-or-later"
+PLUGIN_LICENSE_URL = "https://gnu.org/licenses/gpl.html"
 
 # Ensure required Picard configuration types are imported before use
 from picard.config import BoolOption, TextOption
