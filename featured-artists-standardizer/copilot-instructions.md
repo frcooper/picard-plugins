@@ -10,6 +10,7 @@ Key behaviors
 - Normalization: De-duplicate guests case-insensitively while preserving order, and normalize separators to `; ` inside the `(feat. …)` suffix.
 - Integration: Includes the behavior of the third-party `Standardise Feat.` plugin by normalizing join phrases like `ft`, `ft.`, `featuring` to `feat.` before further processing.
 - Whitelist: A configurable whitelist of exact artist credits that should never be altered. If a full credit or its lead artist is whitelisted, no changes at all are applied to that credit.
+ - Additional Artists Variables integration: When the `Additional Artists Variables` plugin is installed and enabled, use its primary/additional artist variables as the authoritative source of lead vs guest artists for both albums and tracks. Fall back to the regex-based parsing above when those variables are missing.
  
 
 Implementation notes

@@ -268,10 +268,36 @@ def _standardize_join_phrases(artists_str: str, artists_list):
         return artists_str
 
 
+def _get_aav_lead_and_guests(md, scope: str):
+    """Return (lead, [guests]) using Additional Artists Variables if available.
+
+    Scope is "album" or "track". If the expected AAV variables are not
+    present, returns (None, None) so callers can fall back to regex parsing.
+    """
+    try:
+        prefix = f"~artists_{scope}_"
+        lead = md.get(prefix + "primary_cred") or md.get(prefix + "primary_std")
+        guests = md.get(prefix + "additional_cred_multi") or md.get(prefix + "additional_std_multi")
+        if isinstance(guests, str):
+            guests = [guests]
+        if lead and guests:
+            return str(lead), [str(g) for g in guests if g]
+    except Exception:
+        pass
+    return None, None
+
+
 # --- Album-level processor ---
 
 def move_album_featartists(tagger, metadata, release):
+    # Prefer AAV variables when available for more accurate lead/guest data.
+    lead, feat = _get_aav_lead_and_guests(metadata, "album")
+    if lead is not None and _is_whitelisted_credit_or_lead(lead):
+        log.debug("Featured Artists: skipping album (AAV lead %r whitelisted)", lead)
+        return
     albumartist = metadata.get("albumartist", "")
+    if not albumartist and lead:
+        albumartist = lead
     if not albumartist:
         return
     if _is_whitelisted_credit_or_lead(albumartist):
@@ -301,7 +327,9 @@ def move_album_featartists(tagger, metadata, release):
         log.debug("Featured Artists: %s", "Skipping Various Artists album")
         return
     
-    lead, feat = _split_artist_feat(albumartist)
+    # If AAV did not provide guests, fall back to feature-token parsing.
+    if not feat:
+        lead, feat = _split_artist_feat(albumartist)
     if not feat:
         return
     
@@ -328,9 +356,13 @@ def move_album_featartists(tagger, metadata, release):
 # --- Track-level processor ---
 
 def move_track_featartists(tagger, metadata, track, release):
+    # Prefer AAV variables when available for more accurate lead/guest data.
+    lead, feat = _get_aav_lead_and_guests(metadata, "track")
     artist = metadata.get("artist", "")
-    if _is_whitelisted_credit_or_lead(artist):
-        log.debug("Featured Artists: skipping artist %r (whitelisted)", artist)
+    if not artist and lead:
+        artist = lead
+    if _is_whitelisted_credit_or_lead(artist or lead or ""):
+        log.debug("Featured Artists: skipping artist %r (whitelisted via AAV or tags)", artist or lead)
         return
     # Pre-pass: normalize join phrases to 'feat.' using credited artists list
     try:
@@ -351,7 +383,9 @@ def move_track_featartists(tagger, metadata, track, release):
         std_sort = _standardize_join_phrases(artistsort, artists_sort_list)
         if std_sort != artistsort:
             metadata["artistsort"] = std_sort
-    lead, feat = _split_artist_feat(artist)
+    # If AAV did not provide guests, fall back to feature-token parsing.
+    if not feat:
+        lead, feat = _split_artist_feat(artist)
     feat_str = "; ".join(feat)
     
     if feat:

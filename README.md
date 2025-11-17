@@ -11,13 +11,7 @@ This repository contains a small collection of custom plugins for [MusicBrainz P
 - Album level: pulls features out of `ALBUMARTIST` into the `ALBUM` title `(feat. …)`, skipping "Various Artists".
 - Normalizes separators and de-duplicates guests while preserving order.
 - Includes a configurable whitelist of artist credits that should never be altered.
-
-### Guardrails — collision-aware renamer (experimental) (`file-collision-protection/guardrails.py`)
-
-- Experimental plugin that watches for Picard's " (n)" filename collision suffix after saves.
-- On normal mode: sets `_guardrails_has_collision` and immediately re-runs Picard's naming logic so your script can switch to an alternate template.
-- On fatal mode: treats collisions as errors, attempting to roll back the rename/move to the original path when possible.
-- Provides the `$collides()` script function to let naming scripts react cleanly to collisions.
+- When the `Additional Artists Variables` plugin is installed, uses its primary/additional artist variables as the main source of lead vs guest artists, falling back to heuristic parsing otherwise.
 
 ### Asciifier — to_ascii() (`asciifier/to_ascii.py`)
 
@@ -33,3 +27,11 @@ These third-party plugins pair well with this collection:
 - Additional Artists Variables — <https://github.com/rdswift/picard-plugins/tree/master/plugins/additional_artists_variables>
 - Standardise Performers — <https://github.com/Sobak/picard-plugins/tree/master/plugins/standardise_performers>
 
+## Experimental - Seriously
+
+### Guardrails — collision-aware renamer (`file-collision-protection/guardrails.py`)
+
+- Experimental plugin that watches for Picard's " (n)" filename collision suffix after saves.
+- On normal mode: sets `_guardrails_has_collision` and immediately re-runs Picard's naming logic so your script can switch to an alternate template.
+- On fatal mode: treats collisions as errors, attempting to roll back the rename/move to the original path when possible.
+- Provides the `$collides()` script function to let naming scripts react cleanly to collisions.
