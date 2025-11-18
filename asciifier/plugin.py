@@ -4,7 +4,7 @@ This module is the main plugin file for Picard and the library entry
 point for the Asciifier plugin.
 """
 
-PLUGIN_NAME = "Asciifier  to_ascii()"
+PLUGIN_NAME = "Asciifier - to_ascii()"
 PLUGIN_AUTHOR = "FRC + GitHub Copilot"
 PLUGIN_DESCRIPTION = (
 	"Expose a $asciify() script function that replaces accented and other "

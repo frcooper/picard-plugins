@@ -11,6 +11,9 @@ Project conventions
 - use semantic commit messages.
 - increment the version number intelligently based on the type of changes made.
 
+Content style
+- Do not use emojis anywhere in this repository (code, docs, commit messages, or automated comments).
+
 Critical workflows (manual testing)
 - Enable debug logs: in Picard, set Logging level to Debug and use Help → View Log to see `log.debug` output from these plugins.
 
