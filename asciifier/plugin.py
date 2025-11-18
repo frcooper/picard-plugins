@@ -394,12 +394,12 @@ class AsciifierOptionsPage(OptionsPage):
 
 	def load(self):
 		self.auto_enabled_checkbox.setChecked(
-			config.setting.get("asciifier_auto_enabled")
+			config.setting["asciifier_auto_enabled"]
 			if "asciifier_auto_enabled" in config.setting
 			else True
 		)
 		self.auto_tags_edit.setPlainText(
-			config.setting.get("asciifier_auto_tags")
+			config.setting["asciifier_auto_tags"]
 			if "asciifier_auto_tags" in config.setting
 			else (
 				"album, albumartist, albumartists, albumartistsort, albumsort, "
@@ -426,20 +426,36 @@ register_options_page(AsciifierOptionsPage)
 
 
 def _auto_album_processor(tagger, metadata_obj, release):
-	if not config.setting.get("asciifier_auto_enabled", False):
+	if "asciifier_auto_enabled" in config.setting:
+		auto_enabled = bool(config.setting["asciifier_auto_enabled"])
+	else:
+		auto_enabled = False
+	if not auto_enabled:
 		return
 	table = _build_effective_table()
-	tags = _parse_auto_tags(config.setting.get("asciifier_auto_tags", ""))
+	if "asciifier_auto_tags" in config.setting:
+		raw_tags = config.setting["asciifier_auto_tags"]
+	else:
+		raw_tags = ""
+	tags = _parse_auto_tags(raw_tags)
 	if not tags or not table:
 		return
 	_auto_clean_metadata(metadata_obj, table, tags)
 
 
 def _auto_track_processor(tagger, metadata_obj, track, release):
-	if not config.setting.get("asciifier_auto_enabled", False):
+	if "asciifier_auto_enabled" in config.setting:
+		auto_enabled = bool(config.setting["asciifier_auto_enabled"])
+	else:
+		auto_enabled = False
+	if not auto_enabled:
 		return
 	table = _build_effective_table()
-	tags = _parse_auto_tags(config.setting.get("asciifier_auto_tags", ""))
+	if "asciifier_auto_tags" in config.setting:
+		raw_tags = config.setting["asciifier_auto_tags"]
+	else:
+		raw_tags = ""
+	tags = _parse_auto_tags(raw_tags)
 	if not tags or not table:
 		return
 	_auto_clean_metadata(metadata_obj, table, tags)
