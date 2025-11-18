@@ -38,7 +38,10 @@ PLUGIN_OPTIONS = [
 
 
 def _load_maps_from_config():
-	raw = config.setting.get("asciifier_maps", "{}")
+	if "asciifier_maps" in config.setting:
+		raw = config.setting["asciifier_maps"]
+	else:
+		raw = "{}"
 	try:
 		data = json.loads(raw) if raw else {}
 	except Exception:
