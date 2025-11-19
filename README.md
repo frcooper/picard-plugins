@@ -4,7 +4,7 @@ This repository contains a small collection of custom plugins for [MusicBrainz P
 
 ## Plugins
 
-### Featured Artists — Standardizer (`featured-artists-standardizer/featured-artists-standardizer.py`)
+### Featured Artists Standardizer (`featured-artists-standardizer/featured-artists-standardizer.py`)
 
 - Standardizes how featured artists are represented at both track and album level.
 - Track level: moves featured artists from `ARTIST` into the `TITLE` suffix `(feat. A; B)` once, keeping the lead artist in `ARTIST`/`artistsort`.
@@ -13,7 +13,7 @@ This repository contains a small collection of custom plugins for [MusicBrainz P
 - Includes a configurable whitelist of artist credits that should never be altered.
 - When the `Additional Artists Variables` plugin is installed, uses its primary/additional artist variables as the main source of lead vs guest artists, falling back to heuristic parsing otherwise.
 
-### Asciifier — to_ascii() (`asciifier/asciifier.py`)
+### Asciifier (`asciifier/asciifier.py`)
 
 - Provides the `$asciify()` script function for converting strings to ASCII-safe equivalents.
 - Uses a replacement table based on the classic `Non-ASCII Equivalents` plugin, split into configurable maps (`alpha`, `punct`, `math`, `other`).
@@ -48,7 +48,7 @@ These third-party plugins pair well with this collection:
 
 ## Experimental - Seriously
 
-### Guardrails — collision-aware renamer (`file-collision-protection/file-collision-protection.py`)
+### Guardrails (`file-collision-protection/file-collision-protection.py`)
 
 - Experimental plugin that watches for Picard's " (n)" filename collision suffix after saves.
 - On normal mode: sets `_guardrails_has_collision` and immediately re-runs Picard's naming logic so your script can switch to an alternate template.
