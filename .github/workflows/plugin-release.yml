@@ -38,13 +38,13 @@ jobs:
           # Map plugin name to main file path
           case "$PLUGIN_NAME" in
             "featured-artists-standardizer")
-              FILE="featured-artists-standardizer/plugin.py"
+              FILE="featured-artists-standardizer/featured-artists-standardizer.py"
               ;;
             "file-collision-protection")
-              FILE="file-collision-protection/plugin.py"
+              FILE="file-collision-protection/file-collision-protection.py"
               ;;
             "asciifier")
-              FILE="asciifier/plugin.py"
+              FILE="asciifier/asciifier.py"
               ;;
             *)
               echo "Unknown plugin name '$PLUGIN_NAME'" >&2
@@ -68,7 +68,7 @@ jobs:
           PLUGIN_NAME="${{ steps.info.outputs.plugin_name }}"
           VERSION="${{ steps.info.outputs.version }}"
           ZIP_NAME="${PLUGIN_NAME}-${VERSION}.zip"
-          zip -r "$ZIP_NAME" "$PLUGIN_NAME"
+          zip -r "$ZIP_NAME" "$PLUGIN_NAME" -x "$PLUGIN_NAME/copilot-instructions.md"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

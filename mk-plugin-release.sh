@@ -22,13 +22,13 @@ fi
 # Determine main plugin file
 case "$PLUGIN_NAME" in
   "featured-artists-standardizer")
-    FILE="$PLUGIN_NAME/plugin.py"
+    FILE="$PLUGIN_NAME/featured-artists-standardizer.py"
     ;;
   "file-collision-protection")
-    FILE="$PLUGIN_NAME/plugin.py"
+    FILE="$PLUGIN_NAME/file-collision-protection.py"
     ;;
   "asciifier")
-    FILE="$PLUGIN_NAME/plugin.py"
+    FILE="$PLUGIN_NAME/asciifier.py"
     ;;
   *)
     echo "Unknown plugin '$PLUGIN_NAME'" >&2

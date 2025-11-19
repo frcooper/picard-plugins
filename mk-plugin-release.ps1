@@ -14,9 +14,9 @@ if (-not (Test-Path $PluginName -PathType Container)) {
 }
 
 switch ($PluginName) {
-    'featured-artists-standardizer' { $file = "$PluginName/plugin.py" }
-    'file-collision-protection' { $file = "$PluginName/plugin.py" }
-    'asciifier' { $file = "$PluginName/plugin.py" }
+    'featured-artists-standardizer' { $file = "$PluginName/featured-artists-standardizer.py" }
+    'file-collision-protection' { $file = "$PluginName/file-collision-protection.py" }
+    'asciifier' { $file = "$PluginName/asciifier.py" }
     default {
         Write-Error "Unknown plugin '$PluginName'"
         exit 1

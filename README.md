@@ -4,7 +4,7 @@ This repository contains a small collection of custom plugins for [MusicBrainz P
 
 ## Plugins
 
-### Featured Artists — Standardizer (`featured-artists-standardizer/plugin.py`)
+### Featured Artists — Standardizer (`featured-artists-standardizer/featured-artists-standardizer.py`)
 
 - Standardizes how featured artists are represented at both track and album level.
 - Track level: moves featured artists from `ARTIST` into the `TITLE` suffix `(feat. A; B)` once, keeping the lead artist in `ARTIST`/`artistsort`.
@@ -13,7 +13,7 @@ This repository contains a small collection of custom plugins for [MusicBrainz P
 - Includes a configurable whitelist of artist credits that should never be altered.
 - When the `Additional Artists Variables` plugin is installed, uses its primary/additional artist variables as the main source of lead vs guest artists, falling back to heuristic parsing otherwise.
 
-### Asciifier — to_ascii() (`asciifier/plugin.py`)
+### Asciifier — to_ascii() (`asciifier/asciifier.py`)
 
 - Provides the `$asciify()` script function for converting strings to ASCII-safe equivalents.
 - Uses a replacement table based on the classic `Non-ASCII Equivalents` plugin, split into configurable maps (`alpha`, `punct`, `math`, `other`).
@@ -25,7 +25,7 @@ This repository contains a small collection of custom plugins for [MusicBrainz P
 - GitHub Actions: On any pushed tag matching `*-vMAJOR.MINOR.PATCH`, the `Plugin Release` workflow runs.
   - It derives the plugin name from the tag prefix (e.g. `asciifier-v1.0.0` -> `asciifier`).
   - It validates that the version string is in `MAJOR.MINOR.PATCH` format.
-  - It checks that the `PLUGIN_VERSION` defined in that plugin's `plugin.py` matches the tag version.
+  - It checks that the `PLUGIN_VERSION` defined in that plugin's `<plugin-name>.py` matches the tag version.
   - It builds a zip archive named `<plugin>-<version>.zip` from the plugin directory and publishes a GitHub Release attaching that archive.
 - Helper scripts: To cut a release for a plugin from this repo root, you can use either script below (they both perform the same steps):
   - Bash: `./mk-plugin-release.sh <plugin-name> <MAJOR.MINOR.PATCH>`
@@ -34,7 +34,7 @@ This repository contains a small collection of custom plugins for [MusicBrainz P
 These scripts will:
 
 1. Validate the version format.
-2. Update the `PLUGIN_VERSION` line in `<plugin-name>/plugin.py`.
+2. Update the `PLUGIN_VERSION` line in `<plugin-name>/<plugin-name>.py`.
 3. Commit the change with a semantic-style message (`chore(<plugin>): release vX.Y.Z`).
 4. Create a tag `<plugin-name>-vX.Y.Z`.
 5. Push the commit and tag to `origin`, which in turn triggers the GitHub Actions release workflow.
@@ -48,7 +48,7 @@ These third-party plugins pair well with this collection:
 
 ## Experimental - Seriously
 
-### Guardrails — collision-aware renamer (`file-collision-protection/plugin.py`)
+### Guardrails — collision-aware renamer (`file-collision-protection/file-collision-protection.py`)
 
 - Experimental plugin that watches for Picard's " (n)" filename collision suffix after saves.
 - On normal mode: sets `_guardrails_has_collision` and immediately re-runs Picard's naming logic so your script can switch to an alternate template.

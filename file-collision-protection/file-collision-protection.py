@@ -20,15 +20,15 @@ import re
 import shutil
 
 from picard import log, config
-from picard.file import register_file_post_save_processor, File
+from picard.file import register_file_post_save_processor, File # pyright: ignore[reportAttributeAccessIssue]
 try:
-	from picard.file import register_file_pre_save_processor  # Picard 2.9+
+	from picard.file import register_file_pre_save_processor  # pyright: ignore[reportAttributeAccessIssue]
 	_GUARDRAILS_HAS_PRESAVE = True
 except Exception:
 	register_file_pre_save_processor = None
 	_GUARDRAILS_HAS_PRESAVE = False
-from picard.script import register_script_function
-from picard.ui.options import register_options_page, OptionsPage
+from picard.script import register_script_function # pyright: ignore[reportAttributeAccessIssue]
+from picard.ui.options import register_options_page, OptionsPage # pyright: ignore[reportAttributeAccessIssue]
 from picard.config import BoolOption
 
 
@@ -124,7 +124,7 @@ def file_post_save_processor(file_obj):
 		log.error("Guardrails: post-save processing failed for %r", file_obj, exc_info=True)
 
 
-if _GUARDRAILS_HAS_PRESAVE:
+if register_file_pre_save_processor is not None:
 	register_file_pre_save_processor(file_pre_save_processor)
 register_file_post_save_processor(file_post_save_processor)
 
@@ -149,9 +149,10 @@ class GuardrailsOptionsPage(OptionsPage):
 
 	def __init__(self, parent=None):
 		super().__init__(parent)
-		from PyQt5.QtWidgets import QVBoxLayout, QLabel, QRadioButton, QGroupBox
+		from PyQt5.QtWidgets import QVBoxLayout, QLabel, QRadioButton, QGroupBox, QLayout
 
-		layout = QVBoxLayout(self)
+		layout: QLayout = QVBoxLayout()
+		self.setLayout(layout)
 
 		desc = QLabel(
 			"On filename collision Picard appends ' (n)'. This plugin can either "
