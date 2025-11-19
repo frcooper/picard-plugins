@@ -17,7 +17,7 @@ from picard.ui.options import (
 import re
 
 
-PLUGIN_NAME = "Featured Artists  Standardizer"
+PLUGIN_NAME = "Featured Artists Standardizer"
 PLUGIN_AUTHOR = "FRC + ChatGPT (derives from community plugin authors)"
 PLUGIN_DESCRIPTION = "Enforce label-style handling of featured artists: keep folders clean, move features to titles, normalize separators, avoid duplicates."
 PLUGIN_VERSION = '2.1.0'

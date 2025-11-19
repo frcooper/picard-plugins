@@ -4,7 +4,7 @@ This module is the main plugin file for Picard and the library entry
 point for the Guardrails — collision-aware renamer plugin.
 """
 
-PLUGIN_NAME = 'Guardrails  collision-aware renamer (experimental)'
+PLUGIN_NAME = 'Guardrails'
 PLUGIN_AUTHOR = 'FRC + GitHub Copilot'
 PLUGIN_DESCRIPTION = (
 	"Experimental collision-handling plugin. Detects when a saved file had to be suffixed with "
