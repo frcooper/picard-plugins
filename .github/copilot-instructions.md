@@ -3,6 +3,7 @@
 Context: This repo contains MusicBrainz Picard plugins. No external deps. These plugins target Picard 2.0+.
 
 Never make edits to anything in the 3rd-party/ tree.
+Never make edits to anything in the picard/ tree. This is Picard's own codebase for reference only.
 
 Project conventions
 - Logging: use picard's builtin log; prefix messages with the plugin name. 
@@ -19,4 +20,4 @@ Critical workflows (manual testing)
 
 This file is for general instructions to help GitHub Copilot provide better suggestions when working on this repository. Each plugin should also have its own specific instructions in its directory.
 
-Every plugin should have complete metadata in its `__init__.py` file, including name, version, author, description, and URL.
+Every plugin should have complete metadata in its python file, including name, version, author, description, and URL.
