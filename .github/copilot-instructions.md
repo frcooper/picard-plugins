@@ -11,6 +11,7 @@ Project conventions
 - Options UI: subclass `OptionsPage`; set `NAME`, `TITLE`, `PARENT='plugins'`. Build widgets directly on `self` and assign `self.ui = self`. Uses PyQt5.
 - Reset controls: each plugin must expose a "Reset" action that deletes all of its stored keys from `config.setting` (equivalent to a fresh install) without disturbing other plugins.
 - Self-uninstall: each plugin's options page must offer a "Self-Uninstall" action that runs the reset logic and then disables/uninstalls the plugin as if the user clicked the uninstall button on Picard's Plugins page.
+- Release assets: when packaging a plugin zip for a release, name the archive exactly after the plugin module (e.g. `asciifier.zip`) with no version suffix so Picard can import it.
 - use semantic commit messages.
 - increment the version number intelligently based on the type of changes made.
 

@@ -66,8 +66,7 @@ jobs:
       - name: Create plugin archive
         run: |
           PLUGIN_NAME="${{ steps.info.outputs.plugin_name }}"
-          VERSION="${{ steps.info.outputs.version }}"
-          ZIP_NAME="${PLUGIN_NAME}-${VERSION}.zip"
+          ZIP_NAME="${PLUGIN_NAME}.zip"
           (cd "$PLUGIN_NAME" && zip -r "../$ZIP_NAME" . -x "copilot-instructions.md")
 
       - name: Create GitHub Release
@@ -76,6 +75,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           files: |
-            ${{ steps.info.outputs.plugin_name }}-${{ steps.info.outputs.version }}.zip
+            ${{ steps.info.outputs.plugin_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
