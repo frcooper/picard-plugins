@@ -9,6 +9,8 @@ Project conventions
 - Logging: use picard's builtin log; prefix messages with the plugin name. 
 - Settings: define with `BoolOption("setting", key, default)` in `PLUGIN_OPTIONS`; read via `config.setting[key]`. When loading settings in code or options pages, follow Picard's standard behaviour: use the stored value if the key exists in `config.setting`, otherwise fall back to the default from `PLUGIN_OPTIONS`.
 - Options UI: subclass `OptionsPage`; set `NAME`, `TITLE`, `PARENT='plugins'`. Build widgets directly on `self` and assign `self.ui = self`. Uses PyQt5.
+- Reset controls: each plugin must expose a "Reset" action that deletes all of its stored keys from `config.setting` (equivalent to a fresh install) without disturbing other plugins.
+- Self-uninstall: each plugin's options page must offer a "Self-Uninstall" action that runs the reset logic and then disables/uninstalls the plugin as if the user clicked the uninstall button on Picard's Plugins page.
 - use semantic commit messages.
 - increment the version number intelligently based on the type of changes made.
 
