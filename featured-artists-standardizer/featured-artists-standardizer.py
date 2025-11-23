@@ -99,6 +99,7 @@ _FEAT_SEP_RE = re.compile(
 	re.IGNORECASE,
 )
 _FT_NORMALIZE_RE = re.compile(r" f(ea)?t(\.|uring)? ", re.IGNORECASE)
+_FEAT_SUFFIX_RE = re.compile(r"(?i)\s*\(\s*(?:feat\.|featuring|with)\s+(?P<guests>.+?)\s*\)\s*$")
 
 
 class FeaturedArtistsOptionsPage(OptionsPage):
@@ -275,8 +276,45 @@ def _normalize_feat_list(feat_tail: str):
 	return ordered
 
 
-def _already_has_feat_suffix(title: str) -> bool:
-	return bool(re.search(r"(?i)\(\s*(?:feat\.|featuring|with)\s+.+\)\s*$", title or ""))
+def _trim_feat_split_edges(lead: str, tail: str):
+	lead = (lead or "").rstrip()
+	tail = (tail or "").lstrip()
+	remainder = ""
+	wrappers = [("(", ")"), ("[", "]"), ("{", "}"), ("‹", "›"), ("«", "»")]
+	for left, right in wrappers:
+		if lead.endswith(left):
+			lead = lead[:-len(left)].rstrip()
+			if right:
+				closing_idx = tail.find(right)
+				if closing_idx != -1:
+					remainder = tail[closing_idx + len(right):]
+					tail = tail[:closing_idx]
+			break
+	lead = lead.rstrip(" -–—:;|")
+	tail = tail.lstrip(" -–—:;|")
+	if remainder.strip():
+		lead = f"{lead} {remainder.strip()}".strip()
+	return lead, tail
+
+
+def _extract_feat_suffix(text: str):
+	value = text or ""
+	m = _FEAT_SUFFIX_RE.search(value)
+	if not m:
+		return value, []
+	base = value[:m.start()].rstrip()
+	guests = _normalize_feat_list(m.group("guests"))
+	return base, guests
+
+
+def _apply_feat_suffix(text: str, feat_list):
+	base, _ = _extract_feat_suffix(text or "")
+	base = base.rstrip()
+	if not base:
+		base = (text or "").strip()
+	if feat_list:
+		return "%s (feat. %s)" % (base, "; ".join(feat_list))
+	return base
 
 
 def _split_artist_feat(artist: str):
@@ -286,6 +324,7 @@ def _split_artist_feat(artist: str):
 	if not m:
 		return artist, []
 	lead, tail = m.group(1), m.group(2)
+	lead, tail = _trim_feat_split_edges(lead, tail)
 	lead = _strip_wrappers(lead)
 	tail = _strip_wrappers(tail)
 	return (lead or artist), _normalize_feat_list(tail)
@@ -404,10 +443,11 @@ def move_album_featartists(tagger, metadata, release):
 		lead_sort, _ = _split_artist_feat(metadata.get("albumartistsort", ""))
 		metadata["albumartistsort"] = lead_sort
 	album = metadata.get("album", "")
-	if album and not _already_has_feat_suffix(album):
-		new_album = "%s (feat. %s)" % (album, feat_str)
-		metadata["album"] = new_album
-		log.debug("Featured Artists: %s", "Updated album title to: '%s'" % new_album)
+	if album:
+		new_album = _apply_feat_suffix(album, feat)
+		if new_album != album:
+			metadata["album"] = new_album
+			log.debug("Featured Artists: %s", "Updated album title to: '%s'" % new_album)
 
 
 def move_track_featartists(tagger, metadata, track, release):
@@ -449,10 +489,11 @@ def move_track_featartists(tagger, metadata, track, release):
 			lead_sort, _ = _split_artist_feat(metadata.get("artistsort", ""))
 			metadata["artistsort"] = lead_sort
 	title = metadata.get("title", "")
-	if feat and title and not _already_has_feat_suffix(title):
-		new_title = "%s (feat. %s)" % (title, feat_str)
-		metadata["title"] = new_title
-		log.debug("Featured Artists: %s", "Updated title to: '%s'" % new_title)
+	if feat and title:
+		new_title = _apply_feat_suffix(title, feat)
+		if new_title != title:
+			metadata["title"] = new_title
+			log.debug("Featured Artists: %s", "Updated title to: '%s'" % new_title)
 
 
 register_album_metadata_processor(move_album_featartists)
