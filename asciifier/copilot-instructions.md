@@ -38,6 +38,8 @@ Implementation notes
 	- A map selector with add/remove and enabled/disabled controls.
 	- A 2-column grid for character→replacement pairs for the currently selected map.
 - Ensure at least one map always exists in the UI, but allow that map's pair list to be empty so the plugin can be effectively no-op.
+- On module import, pre-seed `config.setting` with default maps/flags if the keys are missing so a freshly enabled plugin behaves as intended without visiting the options page.
+- Always read settings directly via `config.setting["…"]` so Picard's option defaults apply on first run; avoid checking `'key in config.setting'` before accessing.
 
 Versioning
 - Use semantic versions in `MAJOR.MINOR.PATCH` form for `PLUGIN_VERSION`.

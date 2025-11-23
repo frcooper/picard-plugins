@@ -22,25 +22,130 @@ from picard.config import TextOption, BoolOption
 from picard.ui.options import register_options_page, OptionsPage
 
 
+import copy
 import json
+
+
+DEFAULT_AUTO_TAGS = (
+	"album, albumartist, albumartists, albumartistsort, albumsort, "
+	"artist, artists, artistsort, title"
+)
 
 
 PLUGIN_OPTIONS = [
 	TextOption("setting", "asciifier_maps", "{}"),
 	BoolOption("setting", "asciifier_auto_enabled", True),
-	TextOption(
-		"setting",
-		"asciifier_auto_tags",
-		"album, albumartist, albumartists, albumartistsort, albumsort, "
-		"artist, artists, artistsort, title",
-	),
+	TextOption("setting", "asciifier_auto_tags", DEFAULT_AUTO_TAGS),
 ]
+DEFAULT_CHAR_MAPS = {
+	"alpha": {
+		"enabled": True,
+		"pairs": [
+			["Å", "AA"],
+			["å", "aa"],
+			["Æ", "AE"],
+			["æ", "ae"],
+			["Œ", "OE"],
+			["œ", "oe"],
+			["ẞ", "ss"],
+			["ß", "ss"],
+			["Ø", "O"],
+			["ø", "o"],
+			["Ł", "L"],
+			["ł", "l"],
+			["Þ", "Th"],
+			["þ", "th"],
+			["Ð", "D"],
+			["ð", "d"],
+		],
+	},
+	"punct": {
+		"enabled": True,
+		"pairs": [
+			["¡", "!"],
+			["¿", "?"],
+			["–", "--"],
+			["—", "--"],
+			["―", "--"],
+			["«", "<<"],
+			["»", ">>"],
+			["‘", "'"],
+			["’", "'"],
+			["‚", ","],
+			["‛", "'"],
+			["“", '"'],
+			["”", '"'],
+			["„", ",,"],
+			["‟", '"'],
+			["‹", "<"],
+			["›", ">"],
+			["⹂", ",,"],
+			["「", "|-"],
+			["」", "-|"],
+			["『", "|-"],
+			["』", "-|"],
+			["〝", '"'],
+			["〞", '"'],
+			["〟", ",,"],
+			["﹁", "-|"],
+			["﹂", "|-"],
+			["﹃", "-|"],
+			["﹄", "|-"],
+			["｢", "|-"],
+			["｣", "-|"],
+			["・", "."],
+		],
+	},
+	"math": {
+		"enabled": True,
+		"pairs": [
+			["≠", "!="],
+			["≤", "<="],
+			["≥", ">="],
+			["±", "+-"],
+			["∓", "-+"],
+			["×", "x"],
+			["·", "."],
+			["÷", "/"],
+			["√", "\\/"],
+			["∑", "E"],
+			["≪", "<<"],
+			["≫", ">>"],
+		],
+	},
+	"other": {
+		"enabled": True,
+		"pairs": [
+			["°", "o"],
+			["µ", "u"],
+			["ı", "i"],
+			["†", "t"],
+			["©", "(c)"],
+			["®", "(R)"],
+			["♥", "<3"],
+			["→", "-->"],
+			["☆", "*"],
+			["★", "*"],
+		],
+	},
+}
+
+
+def _get_setting(name, default):
+	try:
+		value = config.setting[name]
+	except Exception:
+		return default
+	return default if value is None else value
+
+
+def _default_maps():
+	return copy.deepcopy(DEFAULT_CHAR_MAPS)
 
 
 def _load_maps_from_config():
-	if "asciifier_maps" in config.setting:
-		raw = config.setting["asciifier_maps"]
-	else:
+	raw = _get_setting("asciifier_maps", "{}")
+	if not raw:
 		raw = "{}"
 	try:
 		data = json.loads(raw) if raw else {}
@@ -50,98 +155,7 @@ def _load_maps_from_config():
 	if not isinstance(data, dict):
 		data = {}
 	if not data:
-		data = {
-			"alpha": {
-				"enabled": True,
-				"pairs": [
-					["Å", "AA"],
-					["å", "aa"],
-					["Æ", "AE"],
-					["æ", "ae"],
-					["Œ", "OE"],
-					["œ", "oe"],
-					["ẞ", "ss"],
-					["ß", "ss"],
-					["Ø", "O"],
-					["ø", "o"],
-					["Ł", "L"],
-					["ł", "l"],
-					["Þ", "Th"],
-					["þ", "th"],
-					["Ð", "D"],
-					["ð", "d"],
-				],
-			},
-			"punct": {
-				"enabled": True,
-				"pairs": [
-					["¡", "!"],
-					["¿", "?"],
-					["–", "--"],
-					["—", "--"],
-					["―", "--"],
-					["«", "<<"],
-					["»", ">>"],
-					["‘", "'"],
-					["’", "'"],
-					["‚", ","],
-					["‛", "'"],
-					["“", '"'],
-					["”", '"'],
-					["„", ",,"],
-					["‟", '"'],
-					["‹", "<"],
-					["›", ">"],
-					["⹂", ",,"],
-					["「", "|-"],
-					["」", "-|"],
-					["『", "|-"],
-					["』", "-|"],
-					["〝", '"'],
-					["〞", '"'],
-					["〟", ",,"],
-					["﹁", "-|"],
-					["﹂", "|-"],
-					["﹃", "-|"],
-					["﹄", "|-"],
-					["｢", "|-"],
-					["｣", "-|"],
-					["・", "."],
-				],
-			},
-			"math": {
-				"enabled": True,
-				"pairs": [
-					["≠", "!="],
-					["≤", "<="],
-					["≥", ">="],
-					["±", "+-"],
-					["∓", "-+"],
-					["×", "x"],
-					["·", "."],
-					["÷", "/"],
-					["√", "\\/"],
-					["∑", "E"],
-					["≪", "<<"],
-					["≫", ">>"],
-				],
-			},
-			"other": {
-				"enabled": True,
-				"pairs": [
-					["°", "o"],
-					["µ", "u"],
-					["ı", "i"],
-					["†", "t"],
-					["©", "(c)"],
-					["®", "(R)"],
-					["♥", "<3"],
-					["→", "-->"],
-					["☆", "*"],
-					["★", "*"],
-				],
-			},
-		}
+		data = _default_maps()
 	return data
 
 
@@ -150,6 +164,18 @@ def _save_maps_to_config(maps: dict) -> None:
 		config.setting["asciifier_maps"] = json.dumps(maps, ensure_ascii=False)
 	except Exception:
 		log.error("Asciifier: failed to serialize asciifier_maps", exc_info=True)
+
+
+def _ensure_default_settings():
+	if "asciifier_auto_enabled" not in config.setting:
+		config.setting["asciifier_auto_enabled"] = True
+	if "asciifier_auto_tags" not in config.setting:
+		config.setting["asciifier_auto_tags"] = DEFAULT_AUTO_TAGS
+	if "asciifier_maps" not in config.setting:
+		_save_maps_to_config(_default_maps())
+
+
+_ensure_default_settings()
 
 
 def _build_effective_table() -> dict:
@@ -394,17 +420,10 @@ class AsciifierOptionsPage(OptionsPage):
 
 	def load(self):
 		self.auto_enabled_checkbox.setChecked(
-			config.setting["asciifier_auto_enabled"]
-			if "asciifier_auto_enabled" in config.setting
-			else True
+			bool(_get_setting("asciifier_auto_enabled", True))
 		)
 		self.auto_tags_edit.setPlainText(
-			config.setting["asciifier_auto_tags"]
-			if "asciifier_auto_tags" in config.setting
-			else (
-				"album, albumartist, albumartists, albumartistsort, albumsort, "
-				"artist, artists, artistsort, title"
-			)
+			_get_setting("asciifier_auto_tags", DEFAULT_AUTO_TAGS)
 		)
 		self._maps = _load_maps_from_config()
 		self._ensure_at_least_one_map()
@@ -425,18 +444,13 @@ class AsciifierOptionsPage(OptionsPage):
 register_options_page(AsciifierOptionsPage)
 
 
+
 def _auto_album_processor(tagger, metadata_obj, release):
-	if "asciifier_auto_enabled" in config.setting:
-		auto_enabled = bool(config.setting["asciifier_auto_enabled"])
-	else:
-		auto_enabled = False
+	auto_enabled = bool(_get_setting("asciifier_auto_enabled", True))
 	if not auto_enabled:
 		return
 	table = _build_effective_table()
-	if "asciifier_auto_tags" in config.setting:
-		raw_tags = config.setting["asciifier_auto_tags"]
-	else:
-		raw_tags = ""
+	raw_tags = _get_setting("asciifier_auto_tags", DEFAULT_AUTO_TAGS)
 	tags = _parse_auto_tags(raw_tags)
 	if not tags or not table:
 		return
@@ -444,17 +458,11 @@ def _auto_album_processor(tagger, metadata_obj, release):
 
 
 def _auto_track_processor(tagger, metadata_obj, track, release):
-	if "asciifier_auto_enabled" in config.setting:
-		auto_enabled = bool(config.setting["asciifier_auto_enabled"])
-	else:
-		auto_enabled = False
+	auto_enabled = bool(_get_setting("asciifier_auto_enabled", True))
 	if not auto_enabled:
 		return
 	table = _build_effective_table()
-	if "asciifier_auto_tags" in config.setting:
-		raw_tags = config.setting["asciifier_auto_tags"]
-	else:
-		raw_tags = ""
+	raw_tags = _get_setting("asciifier_auto_tags", DEFAULT_AUTO_TAGS)
 	tags = _parse_auto_tags(raw_tags)
 	if not tags or not table:
 		return
