@@ -25,6 +25,19 @@ from picard.ui.options import register_options_page, OptionsPage
 import json
 
 
+def _plugin_module_name():
+	name = __name__
+	prefix = "picard.plugins."
+	if name.startswith(prefix):
+		name = name[len(prefix):]
+	if "." in name:
+		name = name.split(".")[0]
+	return name
+
+
+PLUGIN_MODULE_NAME = _plugin_module_name()
+
+
 PLUGIN_OPTIONS = [
 	TextOption("setting", "asciifier_maps", "{}"),
 	BoolOption("setting", "asciifier_auto_enabled", True),
@@ -35,6 +48,58 @@ PLUGIN_OPTIONS = [
 		"artist, artists, artistsort, title",
 	),
 ]
+
+
+ASCIIFIER_SETTING_KEYS = [
+	"asciifier_maps",
+	"asciifier_auto_enabled",
+	"asciifier_auto_tags",
+]
+
+
+def reset_asciifier_settings():
+	removed_any = False
+	for key in ASCIIFIER_SETTING_KEYS:
+		try:
+			if key in config.setting:
+				config.setting.remove(key)
+				removed_any = True
+		except Exception:
+			log.error("Asciifier: failed to remove setting %s during reset", key, exc_info=True)
+	if removed_any:
+		log.info("Asciifier: reset all stored settings")
+	else:
+		log.debug("Asciifier: reset requested but no stored settings were found")
+	return removed_any
+
+
+def _disable_asciifier_plugin():
+	try:
+		current = config.setting["enabled_plugins"]
+	except Exception:
+		return False
+	if not current:
+		return False
+	enabled = [name for name in current if name != PLUGIN_MODULE_NAME]
+	if len(enabled) != len(current):
+		config.setting["enabled_plugins"] = enabled
+		log.info("Asciifier: removed plugin from enabled list")
+		return True
+	return False
+
+
+def _self_uninstall_asciifier(tagger):
+	manager = getattr(tagger, "pluginmanager", None)
+	if not manager:
+		log.error("Asciifier: self-uninstall requested but plugin manager is unavailable")
+		return False
+	try:
+		manager.remove_plugin(PLUGIN_MODULE_NAME, with_update=True)
+		log.info("Asciifier: scheduled plugin removal via manager")
+		return True
+	except Exception:
+		log.error("Asciifier: plugin manager removal failed", exc_info=True)
+		return False
 
 
 def _load_maps_from_config():
@@ -284,6 +349,14 @@ class AsciifierOptionsPage(OptionsPage):
 		row2.addStretch(1)
 		layout.addLayout(row2)
 
+		actions = QHBoxLayout()
+		self.reset_btn = QPushButton("Reset Asciifier")
+		self.self_uninstall_btn = QPushButton("Self-Uninstall")
+		actions.addWidget(self.reset_btn)
+		actions.addWidget(self.self_uninstall_btn)
+		actions.addStretch(1)
+		layout.addLayout(actions)
+
 		layout.addStretch()
 		self.ui = self
 
@@ -293,6 +366,8 @@ class AsciifierOptionsPage(OptionsPage):
 		self.map_enabled_checkbox.toggled.connect(self._on_map_enabled_toggled)
 		self.add_row_btn.clicked.connect(self._on_add_row)
 		self.remove_row_btn.clicked.connect(self._on_remove_row)
+		self.reset_btn.clicked.connect(self._confirm_reset)
+		self.self_uninstall_btn.clicked.connect(self._confirm_self_uninstall)
 
 	def _ensure_at_least_one_map(self):
 		if self._maps:
@@ -420,6 +495,70 @@ class AsciifierOptionsPage(OptionsPage):
 			self.auto_tags_edit.toPlainText().strip()
 		)
 		log.debug("Asciifier: saved %d maps; auto_enabled=%r", len(self._maps), self.auto_enabled_checkbox.isChecked())
+
+	def _confirm_reset(self):
+		from typing import cast
+		from PyQt5.QtWidgets import QMessageBox
+		buttons = cast(
+			QMessageBox.StandardButtons,
+			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+		)
+		choice = QMessageBox.question(
+			self,
+			"Reset Asciifier",
+			"Remove all Asciifier settings and restore defaults?",
+			buttons,
+			QMessageBox.StandardButton.No,
+		)
+		if choice != QMessageBox.StandardButton.Yes:
+			return
+		reset_asciifier_settings()
+		self.load()
+		QMessageBox.information(
+			self,
+			"Asciifier Reset",
+			"Asciifier settings have been cleared. Defaults are now in effect.",
+		)
+
+	def _confirm_self_uninstall(self):
+		from typing import cast
+		from PyQt5.QtWidgets import QMessageBox
+		buttons = cast(
+			QMessageBox.StandardButtons,
+			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+		)
+		choice = QMessageBox.question(
+			self,
+			"Self-Uninstall Asciifier",
+			"Reset settings and uninstall the Asciifier plugin? This cannot be undone.",
+			buttons,
+			QMessageBox.StandardButton.No,
+		)
+		if choice != QMessageBox.StandardButton.Yes:
+			return
+		reset_asciifier_settings()
+		disabled = _disable_asciifier_plugin()
+		removed = False
+		if hasattr(self, "tagger") and self.tagger:
+			removed = _self_uninstall_asciifier(self.tagger)
+		if removed:
+			QMessageBox.information(
+				self,
+				"Asciifier Uninstalled",
+				"Asciifier has been removed. Restart Picard to finish uninstalling.",
+			)
+		elif disabled:
+			QMessageBox.warning(
+				self,
+				"Asciifier Disabled",
+				"Asciifier settings were cleared and the plugin was disabled, but removal failed."
+			)
+		else:
+			QMessageBox.warning(
+				self,
+				"Asciifier Self-Uninstall",
+				"Unable to remove the plugin. Please uninstall it from Picard's Plugins page.",
+			)
 
 
 register_options_page(AsciifierOptionsPage)

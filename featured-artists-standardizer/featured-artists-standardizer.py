@@ -17,6 +17,19 @@ from picard.ui.options import (
 import re
 
 
+def _plugin_module_name():
+	name = __name__
+	prefix = "picard.plugins."
+	if name.startswith(prefix):
+		name = name[len(prefix):]
+	if "." in name:
+		name = name.split(".")[0]
+	return name
+
+
+PLUGIN_MODULE_NAME = _plugin_module_name()
+
+
 PLUGIN_NAME = "Featured Artists Standardizer"
 PLUGIN_AUTHOR = "FRC + ChatGPT (derives from community plugin authors)"
 PLUGIN_DESCRIPTION = "Enforce label-style handling of featured artists: keep folders clean, move features to titles, normalize separators, avoid duplicates."
@@ -29,6 +42,54 @@ PLUGIN_LICENSE_URL = "https://gnu.org/licenses/gpl.html"
 PLUGIN_OPTIONS = [
 	TextOption("setting", "featured_artists_whitelist", ""),
 ]
+
+
+FEATURED_ARTISTS_SETTING_KEYS = ["featured_artists_whitelist"]
+
+
+def reset_featured_artists_settings():
+	removed = False
+	for key in FEATURED_ARTISTS_SETTING_KEYS:
+		try:
+			if key in config.setting:
+				config.setting.remove(key)
+				removed = True
+		except Exception:
+			log.error("Featured Artists: failed to remove %s during reset", key, exc_info=True)
+	if removed:
+		log.info("Featured Artists: reset stored settings")
+	else:
+		log.debug("Featured Artists: reset requested but no stored settings were found")
+	return removed
+
+
+def _disable_featured_artists_plugin():
+	try:
+		current = config.setting["enabled_plugins"]
+	except Exception:
+		return False
+	if not current:
+		return False
+	enabled = [name for name in current if name != PLUGIN_MODULE_NAME]
+	if len(enabled) != len(current):
+		config.setting["enabled_plugins"] = enabled
+		log.info("Featured Artists: removed plugin from enabled list")
+		return True
+	return False
+
+
+def _self_uninstall_featured_artists(tagger):
+	manager = getattr(tagger, "pluginmanager", None)
+	if not manager:
+		log.error("Featured Artists: plugin manager unavailable for self-uninstall")
+		return False
+	try:
+		manager.remove_plugin(PLUGIN_MODULE_NAME, with_update=True)
+		log.info("Featured Artists: scheduled removal via plugin manager")
+		return True
+	except Exception:
+		log.error("Featured Artists: failed to remove plugin via manager", exc_info=True)
+		return False
 
 
 _FEAT_TOKEN_RE = re.compile(r"(?i)\b(?:feat\.|featuring|with)\b")
@@ -47,7 +108,13 @@ class FeaturedArtistsOptionsPage(OptionsPage):
 
 	def __init__(self, parent=None):
 		super().__init__(parent)
-		from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPlainTextEdit
+		from PyQt5.QtWidgets import (
+			QVBoxLayout,
+			QLabel,
+			QPlainTextEdit,
+			QPushButton,
+			QHBoxLayout,
+		)
 
 		layout = QVBoxLayout(self)
 
@@ -81,16 +148,96 @@ class FeaturedArtistsOptionsPage(OptionsPage):
 		self.whitelist_edit.setFixedHeight(90)
 		layout.addWidget(self.whitelist_edit)
 
+		actions = QHBoxLayout()
+		self.reset_btn = QPushButton("Reset Featured Artists")
+		self.self_uninstall_btn = QPushButton("Self-Uninstall")
+		actions.addWidget(self.reset_btn)
+		actions.addWidget(self.self_uninstall_btn)
+		actions.addStretch(1)
+		layout.addLayout(actions)
+
 		layout.addStretch()
 		self.ui = self
 
+		self.reset_btn.clicked.connect(self._confirm_reset)
+		self.self_uninstall_btn.clicked.connect(self._confirm_self_uninstall)
+
 	def load(self):
-		self.whitelist_edit.setPlainText(config.setting.get("featured_artists_whitelist", ""))
+		# Picard stores settings in config.setting as a mapping; use dict-like access and fallback if key is missing.
+		key = "featured_artists_whitelist"
+		if key in config.setting:
+			self.whitelist_edit.setPlainText(config.setting[key])
+		else:
+			self.whitelist_edit.setPlainText("")
 
 	def save(self):
 		raw_wl = self.whitelist_edit.toPlainText().strip()
 		config.setting["featured_artists_whitelist"] = raw_wl
 		log.debug("Featured Artists: updated whitelist (%d chars)", len(raw_wl))
+
+	def _confirm_reset(self):
+		from typing import cast
+		from PyQt5.QtWidgets import QMessageBox
+		buttons = cast(
+			QMessageBox.StandardButtons,
+			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+		)
+		choice = QMessageBox.question(
+			self,
+			"Reset Featured Artists",
+			"Remove the whitelist and restore defaults?",
+			buttons,
+			QMessageBox.StandardButton.No,
+		)
+		if choice != QMessageBox.StandardButton.Yes:
+			return
+		reset_featured_artists_settings()
+		self.load()
+		QMessageBox.information(
+			self,
+			"Featured Artists Reset",
+			"All Featured Artists settings were cleared.",
+		)
+
+	def _confirm_self_uninstall(self):
+		from typing import cast
+		from PyQt5.QtWidgets import QMessageBox
+		buttons = cast(
+			QMessageBox.StandardButtons,
+			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+		)
+		choice = QMessageBox.question(
+			self,
+			"Self-Uninstall Featured Artists",
+			"Reset settings and uninstall the Featured Artists Standardizer plugin?",
+			buttons,
+			QMessageBox.StandardButton.No,
+		)
+		if choice != QMessageBox.StandardButton.Yes:
+			return
+		reset_featured_artists_settings()
+		disabled = _disable_featured_artists_plugin()
+		removed = False
+		if hasattr(self, "tagger") and self.tagger:
+			removed = _self_uninstall_featured_artists(self.tagger)
+		if removed:
+			QMessageBox.information(
+				self,
+				"Featured Artists Uninstalled",
+				"The plugin has been removed. Restart Picard to finish uninstalling.",
+			)
+		elif disabled:
+			QMessageBox.warning(
+				self,
+				"Featured Artists Disabled",
+				"The plugin was disabled, but removal failed. Please uninstall it from the Plugins page.",
+			)
+		else:
+			QMessageBox.warning(
+				self,
+				"Self-Uninstall Failed",
+				"Unable to remove the plugin automatically. Please uninstall it manually.",
+			)
 
 
 def _strip_wrappers(s: str) -> str:
@@ -145,8 +292,12 @@ def _split_artist_feat(artist: str):
 
 
 def _parse_whitelist():
+	# Access whitelist from config with safe key lookup
+	key = "featured_artists_whitelist"
+	raw = ""
 	try:
-		raw = config.setting.get("featured_artists_whitelist", "")
+		if key in config.setting:
+			raw = config.setting[key]
 	except Exception:
 		raw = ""
 	if not raw:

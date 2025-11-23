@@ -32,6 +32,19 @@ from picard.ui.options import register_options_page, OptionsPage # pyright: igno
 from picard.config import BoolOption
 
 
+def _plugin_module_name():
+	name = __name__
+	prefix = "picard.plugins."
+	if name.startswith(prefix):
+		name = name[len(prefix):]
+	if "." in name:
+		name = name.split(".")[0]
+	return name
+
+
+PLUGIN_MODULE_NAME = _plugin_module_name()
+
+
 _COLLISION_SUFFIX_RE = re.compile(r"^(?P<stem>.*) \((?P<num>\d+)\)(?P<ext>\.[^.]*)$")
 
 
@@ -142,6 +155,54 @@ PLUGIN_OPTIONS = [
 ]
 
 
+GUARDRAILS_SETTING_KEYS = ["guardrails_fatal_on_collision"]
+
+
+def reset_guardrails_settings():
+	removed = False
+	for key in GUARDRAILS_SETTING_KEYS:
+		try:
+			if key in config.setting:
+				config.setting.remove(key)
+				removed = True
+		except Exception:
+			log.error("Guardrails: failed to remove %s during reset", key, exc_info=True)
+	if removed:
+		log.info("Guardrails: reset stored settings")
+	else:
+		log.debug("Guardrails: reset requested but no stored settings were found")
+	return removed
+
+
+def _disable_guardrails_plugin():
+	try:
+		current = config.setting["enabled_plugins"]
+	except Exception:
+		return False
+	if not current:
+		return False
+	enabled = [name for name in current if name != PLUGIN_MODULE_NAME]
+	if len(enabled) != len(current):
+		config.setting["enabled_plugins"] = enabled
+		log.info("Guardrails: removed plugin from enabled list")
+		return True
+	return False
+
+
+def _self_uninstall_guardrails(tagger):
+	manager = getattr(tagger, "pluginmanager", None)
+	if not manager:
+		log.error("Guardrails: plugin manager unavailable for self-uninstall")
+		return False
+	try:
+		manager.remove_plugin(PLUGIN_MODULE_NAME, with_update=True)
+		log.info("Guardrails: scheduled removal via plugin manager")
+		return True
+	except Exception:
+		log.error("Guardrails: failed to remove plugin via manager", exc_info=True)
+		return False
+
+
 class GuardrailsOptionsPage(OptionsPage):
 	NAME = "guardrails"
 	TITLE = "Guardrails"
@@ -149,7 +210,15 @@ class GuardrailsOptionsPage(OptionsPage):
 
 	def __init__(self, parent=None):
 		super().__init__(parent)
-		from PyQt5.QtWidgets import QVBoxLayout, QLabel, QRadioButton, QGroupBox, QLayout
+		from PyQt5.QtWidgets import (
+			QVBoxLayout,
+			QLabel,
+			QRadioButton,
+			QGroupBox,
+			QLayout,
+			QPushButton,
+			QHBoxLayout,
+		)
 
 		layout: QLayout = QVBoxLayout()
 		self.setLayout(layout)
@@ -175,8 +244,19 @@ class GuardrailsOptionsPage(OptionsPage):
 			"to switch templates when a collision is detected."
 		))
 
+		actions = QHBoxLayout()
+		self.reset_btn = QPushButton("Reset Guardrails")
+		self.self_uninstall_btn = QPushButton("Self-Uninstall")
+		actions.addWidget(self.reset_btn)
+		actions.addWidget(self.self_uninstall_btn)
+		actions.addStretch(1)
+		layout.addLayout(actions)
+
 		layout.addStretch()
 		self.ui = self
+
+		self.reset_btn.clicked.connect(self._confirm_reset)
+		self.self_uninstall_btn.clicked.connect(self._confirm_self_uninstall)
 
 	def load(self):
 		fatal = config.setting["guardrails_fatal_on_collision"]
@@ -194,6 +274,70 @@ class GuardrailsOptionsPage(OptionsPage):
 				"Guardrails: configuration changed guardrails_fatal_on_collision: %r -> %r",
 				old_value,
 				new_value,
+			)
+
+	def _confirm_reset(self):
+		from typing import cast
+		from PyQt5.QtWidgets import QMessageBox
+		buttons = cast(
+			QMessageBox.StandardButtons,
+			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+		)
+		choice = QMessageBox.question(
+			self,
+			"Reset Guardrails",
+			"Remove all Guardrails settings and restore defaults?",
+			buttons,
+			QMessageBox.StandardButton.No,
+		)
+		if choice != QMessageBox.StandardButton.Yes:
+			return
+		reset_guardrails_settings()
+		self.load()
+		QMessageBox.information(
+			self,
+			"Guardrails Reset",
+			"Guardrails settings were cleared.",
+		)
+
+	def _confirm_self_uninstall(self):
+		from typing import cast
+		from PyQt5.QtWidgets import QMessageBox
+		buttons = cast(
+			QMessageBox.StandardButtons,
+			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+		)
+		choice = QMessageBox.question(
+			self,
+			"Self-Uninstall Guardrails",
+			"Reset settings and uninstall the Guardrails plugin?",
+			buttons,
+			QMessageBox.StandardButton.No,
+		)
+		if choice != QMessageBox.StandardButton.Yes:
+			return
+		reset_guardrails_settings()
+		disabled = _disable_guardrails_plugin()
+		removed = False
+		if hasattr(self, "tagger") and self.tagger:
+			removed = _self_uninstall_guardrails(self.tagger)
+		if removed:
+			QMessageBox.information(
+				self,
+				"Guardrails Uninstalled",
+				"The plugin has been removed. Restart Picard to finish uninstalling.",
+			)
+		elif disabled:
+			QMessageBox.warning(
+				self,
+				"Guardrails Disabled",
+				"The plugin was disabled, but removal failed. Please uninstall it from the Plugins page.",
+			)
+		else:
+			QMessageBox.warning(
+				self,
+				"Self-Uninstall Failed",
+				"Unable to remove Guardrails automatically. Please uninstall it manually.",
 			)
 
 
