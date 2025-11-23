@@ -12,7 +12,7 @@ PLUGIN_DESCRIPTION = (
 	"a rollback to the original path. Behaviour is likely to be fragile across Picard versions "
 	"and should be treated as experimental and potentially broken."
 )
-PLUGIN_VERSION = '1.2.0'
+PLUGIN_VERSION = '1.3.0'
 PLUGIN_API_VERSIONS = ["2.2", "2.9"]
 
 import os
