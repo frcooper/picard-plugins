@@ -11,7 +11,7 @@ PLUGIN_DESCRIPTION = (
 	"non-ASCII characters with ASCII approximations using configurable "
 	"character maps, plus an optional automatic mode for common tags."
 )
-PLUGIN_VERSION = '1.3.0'
+PLUGIN_VERSION = '1.3.1'
 PLUGIN_API_VERSIONS = ["2.0"]
 PLUGIN_LICENSE = "GPL-3.0-or-later"
 PLUGIN_LICENSE_URL = "https://gnu.org/licenses/gpl.html"
