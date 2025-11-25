@@ -1,6 +1,13 @@
 import json
 
+import pytest
+
 from picard.metadata import Metadata
+
+
+@pytest.fixture
+def asciifier_module(picard_plugin_loader):
+	return picard_plugin_loader("asciifier/asciifier.py")
 
 
 def test_asciify_replaces_characters_using_default_maps(asciifier_module):

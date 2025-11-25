@@ -2,10 +2,9 @@ import importlib.util
 import pathlib
 import sys
 import types
+import uuid
 
 import pytest
-
-MODULE_NAME = "asciifier_plugin_under_test"
 
 
 class SettingStore(dict):
@@ -26,7 +25,7 @@ def _ensure_picard_stubs():
 	config_module = types.ModuleType("picard.config")
 	setattr(config_module, "setting", SettingStore())
 
-	class _Option:  # pragma: no cover - used only for compatibility
+	class _Option:  # pragma: no cover - compatibility shim
 		def __init__(self, *args, **kwargs):
 			self.args = args
 			self.kwargs = kwargs
@@ -58,7 +57,13 @@ def _ensure_picard_stubs():
 	metadata_module = types.ModuleType("picard.metadata")
 
 	class Metadata(dict):
-		pass
+		def getall(self, key):
+			value = self.get(key, [])
+			if value is None:
+				return []
+			if isinstance(value, list):
+				return value
+			return [value]
 
 	setattr(metadata_module, "Metadata", Metadata)
 	setattr(metadata_module, "_album_processors", [])
@@ -100,12 +105,26 @@ def _ensure_picard_stubs():
 	setattr(picard_module, "script", script_module)
 
 
-def _load_asciifier_module():
-	module_path = pathlib.Path(__file__).resolve().parents[1] / "asciifier" / "asciifier.py"
-	spec = importlib.util.spec_from_file_location(MODULE_NAME, module_path)
+def _reset_picard_state():
+	config_module = sys.modules["picard.config"]
+	config_module.setting.clear()
+	metadata_module = sys.modules["picard.metadata"]
+	metadata_module._album_processors.clear()
+	metadata_module._track_processors.clear()
+	script_module = sys.modules["picard.script"]
+	script_module.registered.clear()
+	options_module = sys.modules["picard.ui.options"]
+	options_module.registered.clear()
+
+
+def _load_plugin_module(alias: str, relative_path: str):
+	module_path = pathlib.Path(__file__).resolve().parents[1] / relative_path
+	spec = importlib.util.spec_from_file_location(alias, module_path)
+	if spec is None or spec.loader is None:
+		raise RuntimeError(f"Unable to load plugin module at {relative_path}")
 	module = importlib.util.module_from_spec(spec)
-	sys.modules[MODULE_NAME] = module
-	spec.loader.exec_module(module)  # type: ignore[union-attr]
+	sys.modules[alias] = module
+	spec.loader.exec_module(module)
 	return module
 
 
@@ -113,21 +132,17 @@ _ensure_picard_stubs()
 
 
 @pytest.fixture
-def asciifier_module():
-	config_module = sys.modules["picard.config"]
-	config_module.setting.clear()
+def picard_plugin_loader():
+	loaded_aliases = []
 
-	metadata_module = sys.modules["picard.metadata"]
-	metadata_module._album_processors.clear()
-	metadata_module._track_processors.clear()
+	def _loader(relative_path: str):
+		_reset_picard_state()
+		alias = f"picard_plugin_{uuid.uuid4().hex}"
+		module = _load_plugin_module(alias, relative_path)
+		loaded_aliases.append(alias)
+		return module
 
-	script_module = sys.modules["picard.script"]
-	script_module.registered.clear()
+	yield _loader
 
-	options_module = sys.modules["picard.ui.options"]
-	options_module.registered.clear()
-
-	sys.modules.pop(MODULE_NAME, None)
-	module = _load_asciifier_module()
-	yield module
-	sys.modules.pop(MODULE_NAME, None)
+	for alias in loaded_aliases:
+		sys.modules.pop(alias, None)

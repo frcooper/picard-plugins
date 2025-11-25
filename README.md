@@ -39,6 +39,13 @@ These scripts will:
 4. Create a tag `<plugin-name>-vX.Y.Z`.
 5. Push the commit and tag to `origin`, which in turn triggers the GitHub Actions release workflow.
 
+## Tests
+
+- Automated unit-style tests live under `tests/` and currently cover both the Asciifier and Featured Artists Standardizer plugins.
+- Run all tests locally with `python -m pytest` from the repo root (the CI workflow runs the same command).
+- Individual plugin suites can be invoked via the file path, e.g. `python -m pytest tests/test_asciifier.py` or `tests/test_featured_artists.py`.
+- The tests rely on lightweight Picard stubs defined in `tests/conftest.py`, so no Picard installation is required.
+
 ## Recommended plugins
 
 These third-party plugins pair well with this collection:

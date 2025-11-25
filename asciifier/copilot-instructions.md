@@ -50,8 +50,6 @@ Tagging & releases
 - Release this plugin independently by tagging commits with `asciifier-vMAJOR.MINOR.PATCH` (for example, `asciifier-v0.4.1`).
 
 Testing tips
-- Write small unit-like tests inside a `if __name__ == "__main__":` block or in a separate helper to verify common cases:
-	- Accented letters (e.g. `áéíóú`, `Å`, `Æ`) are converted to the expected ASCII sequences.
-	- Punctuation and math symbols in `CHAR_TABLE` are mapped as intended.
-	- Already-ASCII strings are returned unchanged.
-- In Picard, test via a simple script using `$asciify()` and inspect the results on tags and filenames.
+- Prefer extending the automated pytest suite in `tests/test_asciifier.py`; run it with `python -m pytest tests/test_asciifier.py` (or `python -m pytest` for the whole repo).
+- Cover both the pure helpers (`to_ascii`, `_parse_auto_tags`, `_auto_clean_metadata`) and the script/auto-processor entry points when adding features.
+- In Picard, you can still sanity-check via `$asciify()` scripts, but automated tests should guard regressions.

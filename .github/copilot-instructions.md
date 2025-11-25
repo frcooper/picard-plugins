@@ -14,6 +14,7 @@ Project conventions
 - Release assets: when packaging a plugin zip for a release, name the archive exactly after the plugin module (e.g. `asciifier.zip`) with no version suffix so Picard can import it.
 - use semantic commit messages.
 - increment the version number intelligently based on the type of changes made.
+- Tests: unit-style coverage lives under `tests/` using pytest and custom Picard stubs in `tests/conftest.py`; run `python -m pytest` (entire suite) or `python -m pytest tests/test_<plugin>.py` (per plugin) before shipping substantial changes.
 
 Content style
 - Do not use emojis anywhere in this repository (code, docs, commit messages, or automated comments).

@@ -30,5 +30,6 @@ Tagging & releases
 - Release this plugin independently by tagging commits with `featured-artists-standardizer-vMAJOR.MINOR.PATCH` (for example, `featured-artists-standardizer-v1.2.2`).
 
 Testing tips
-- Use Picard's debug log to verify transformations. Log both decisions (e.g. skipping due to whitelist) and resulting values (new title/album strings).
-- Test edge cases such as: multiple features, duplicate guests, names with `/`, and credits that already contain `(feat. …)`.
+- Extend the automated pytest coverage in `tests/test_featured_artists.py`; run it with `python -m pytest tests/test_featured_artists.py` (or `python -m pytest` for the full suite).
+- Ensure helpers like `_normalize_feat_list`, `_split_artist_feat`, `_apply_feat_suffix`, and the album/track processors remain idempotent and respect the whitelist.
+- Picard debug logs are still useful for manual verification (log skip reasons and updated titles), but rely on the automated tests for regressions.
